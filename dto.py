@@ -56,7 +56,9 @@ class File(object):
 
     def delete(self, operation_name):
         if operation_name and self.filename and operation_name != 'data':
-            os.remove(self._get_path(operation_name))
+            path_to_be_deleted = self._get_path(operation_name)
+            if os.path.exists(path_to_be_deleted):
+                os.remove(path_to_be_deleted)
 
     def download_file(self, output_dir='data', fname_from_rec=False):
 

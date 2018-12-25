@@ -79,16 +79,18 @@ class Thresholding(Chain):
 
         result = np.zeros(shape=image.shape)
 
-        for i in range(image.shape[0]):
-            for j in range(image.shape[1]):
-                if (i - center_x) ** 2 + (j - center_y) ** 2 > (0.97 * radius) ** 2:
-                    result[i][j] = np.nan
-                elif self._op(image[i][j], threshold):
-                    result[i][j] = 1.0
-                else:
-                    result[i][j] = 0.0
+        result[self._op(image, threshold)] = 1.0
+
+        Y, X = np.ogrid[:4096, :4096]
+
+        dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
+
+        mask = dist_from_center <= radius
+
+        result[~mask] = np.nan
 
         result = closing(result, square(3))
+
         return result
 
     def actual_process(self, file, previous_operation_name=None):
@@ -127,14 +129,15 @@ class LimbDarkeningCorrection(Chain):
             preserve_range=True
         )
 
-        result = np.zeros(shape=image.shape, dtype=float)
+        result = np.divide(image, large_median)
 
-        result[:] = np.nan
+        Y, X = np.ogrid[:4096, :4096]
 
-        xx,cc = skimage.draw.circle(center_x, center_y, radius)
+        dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
 
-        for x,y in zip(xx,cc):
-            result[x][y] = float(image[x][y])/large_median[x][y]
+        mask = dist_from_center <= radius
+
+        result[~mask] = np.nan
 
         return result
 
@@ -151,14 +154,30 @@ class AIAPrep(Chain):
     def _do_aiaprep(self, data, header):
         header['HGLN_OBS'] = 0
 
-        map = sunpy.map.Map(
+        aiamap = sunpy.map.Map(
             data,
             header
         )
 
-        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=map)
+        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)
 
-        return aiamap_afterprep.data, aiamap_afterprep.meta
+        radius = aiamap_afterprep.meta['R_SUN']
+
+        center_x = aiamap_afterprep.meta['CRPIX1']
+
+        center_y = aiamap_afterprep.meta['CRPIX2']
+
+        Y, X = np.ogrid[:4096, :4096]
+
+        dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
+
+        mask = dist_from_center <= radius
+
+        result = aiamap_afterprep.data.copy()
+
+        result[~mask] = np.nan
+
+        return result, aiamap_afterprep.meta
 
     def actual_process(self, file, previous_operation_name=None):
         fits_array = file.get_fits_hdu(previous_operation_name)

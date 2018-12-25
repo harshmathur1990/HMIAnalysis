@@ -6,6 +6,7 @@ import sys
 import numpy as np
 from dto import File
 
+
 c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
 
 
@@ -98,12 +99,7 @@ def apply_mask(image, mask):
     :return:
     '''
 
-    for i in range(image.shape[0]):
-        for j in range(image.shape[1]):
-            if mask[i][j] == 1:
-                image[i][j] = 0
-            elif np.isnan(mask[i][j]):
-                image[i][j] = np.nan
+    image[mask==1] = 0.0
 
     return image
 
@@ -139,19 +135,16 @@ def running_mean(images_list, previous_operation, operation_name='running_mean',
 
     while end <= len(images_list):
         image = np.zeros(shape=(4096, 4096))
-        im_0 = images_list[0].get_fits_hdu(previous_operation)
-        shape_j = im_0.data.shape[0]
-        shape_k = im_0.data.shape[1]
 
 
-        for j in range(0, shape_j):
-            for k in range(0, shape_k):
-                sum = 0.0
-                for i in range(start, end):
-                    curr_image = images_list[i].get_fits_hdu(previous_operation).data
-                    sum += curr_image[j][k]
+        for i in range(start, end):
+            curr_image = images_list[i].get_fits_hdu(previous_operation.operation_name)
+            curr_image.data[np.isnan(curr_image.data)] = 0.0
 
-                image[j][k] = sum/(end-start)
+            image = np.add(image, curr_image.data)
+
+        image = np.divide(image, end-start)
+
 
         images_list[start].save(operation_name, image, curr_image.header)
         start += window_size

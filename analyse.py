@@ -64,7 +64,7 @@ def mag_variations(start_date, end_date):
             previous_operation = hmi_chain.process(hmi_image)
             hmi_image.delete('aiaprep')
 
-        running_mean_hmi = running_mean(hmi_image, previous_operation, window_size=10)
+        running_mean_hmi = running_mean(hmi_images, previous_operation, window_size=10)
         running_mean_hmi = running_mean(running_mean_hmi, previous_operation, operation_name='mean', window_size=len(running_mean_hmi))
         result_list.append(running_mean_hmi[0])
         _date = _date + timedelta(days=1)
