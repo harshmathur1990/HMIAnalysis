@@ -104,24 +104,6 @@ def apply_mask(image, mask):
     return image
 
 
-def delete_images(images, folder_list):
-
-    def delete_file(file_path):
-        try:
-            if os.path.exists(file_path) and os.path.isfile(file_path):
-                os.unlink(file_path)
-        except Exception:
-            sys.stderr.write(traceback.format_exc())
-
-    for image in images:
-        pre_path, path_to_file = os.path.split(image)
-
-        for folder in folder_list:
-            file_path = os.path.join(folder, path_to_file)
-
-            delete_file(file_path)
-
-
 def running_mean(images_list, previous_operation, operation_name='running_mean', window_size=1):
     '''
     :param images_list:
