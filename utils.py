@@ -129,11 +129,11 @@ def running_mean(images_list, previous_operation, operation_name='running_mean',
 
 
         images_list[start].save(operation_name, image, curr_image.header)
-        start += window_size
-        end += window_size
-
 
         resultant_images.append(images_list[start])
+
+        start += window_size
+        end += window_size
 
     return resultant_images
 

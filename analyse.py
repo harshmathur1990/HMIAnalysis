@@ -73,13 +73,17 @@ def mag_variations(start_date, end_date):
     return result_list
 
 
-def analyse(start_date, end_date):
+def analyse_images(start_date, end_date):
     result = mag_variations(start_date, end_date)
     return result
     # car_map = get_car_map(result)
 
 
-if __name__ == '__main__':
+def run():
     today = datetime.datetime.utcnow().date() - timedelta(days=10)
-    week_before = today - timedelta(days=3*365)
-    result = analyse(week_before, week_before)
+    week_before = today - timedelta(days=3 * 365)
+    result = analyse_images(week_before, week_before)
+
+
+if __name__ == '__main__':
+    run()

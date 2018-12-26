@@ -79,7 +79,7 @@ class Thresholding(Chain):
 
         result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
-        result = closing(result, square(3))
+        result = closing(result, square(3)) # 1.8 sec per call
 
         return result
 
@@ -111,7 +111,7 @@ class LimbDarkeningCorrection(Chain):
 
         small_image[np.isnan(small_image)] = 0.0
 
-        small_median = scipy.signal.medfilt2d(small_image, 105)
+        small_median = scipy.signal.medfilt2d(small_image, 105) # Slow, 20 secs per call
 
         large_median = skimage.transform.resize(
             small_median,
@@ -148,7 +148,7 @@ class AIAPrep(Chain):
             header
         )
 
-        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)
+        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap) # Slow, 7 secs per call
 
         result = set_nan_to_non_sun(aiamap_afterprep.data, aiamap_afterprep.meta, factor=self._radius_factor)
 
