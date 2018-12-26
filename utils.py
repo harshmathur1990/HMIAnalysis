@@ -136,3 +136,25 @@ def running_mean(images_list, previous_operation, operation_name='running_mean',
         resultant_images.append(images_list[start])
 
     return resultant_images
+
+
+def set_nan_to_non_sun(image, header, factor=1.0):
+
+    if not factor:
+        factor = 1.0
+
+    radius = header['R_SUN']
+
+    center_x = header['CRPIX1']
+
+    center_y = header['CRPIX2']
+
+    Y, X = np.ogrid[:image.shape[0], :image.shape[1]]
+
+    dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
+
+    mask = dist_from_center <= (factor * radius)
+
+    image[~mask] = np.nan
+
+    return image

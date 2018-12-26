@@ -80,6 +80,6 @@ def analyse(start_date, end_date):
 
 
 if __name__ == '__main__':
-    today = datetime.datetime.utcnow().date()
-    week_before = today - timedelta(days=8)
+    today = datetime.datetime.utcnow().date() - timedelta(days=10)
+    week_before = today - timedelta(days=3*365)
     result = analyse(week_before, week_before)

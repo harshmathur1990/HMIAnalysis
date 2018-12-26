@@ -11,7 +11,7 @@ import sunpy.instr.aia
 from skimage.measure import label, regionprops
 from skimage.morphology import closing, square
 
-from utils import apply_mask
+from utils import apply_mask, set_nan_to_non_sun
 
 
 class Chain(ABC):
@@ -58,19 +58,15 @@ class Chain(ABC):
 
 class Thresholding(Chain):
 
-    def __init__(self, operation_name, k, op, post_processor=None):
+    def __init__(self, operation_name, k, op, post_processor=None, radius_factor=None):
         super().__init__(operation_name)
         self._k = k
         self._op = op
         self._post_processor=post_processor
+        self._radius_factor = radius_factor
 
 
     def _do_thresholding(self, image, header):
-        radius = header['R_SUN']
-
-        center_x = header['CRPIX1']
-
-        center_y = header['CRPIX2']
 
         mean = np.nanmean(image)
         std = np.nanstd(image)
@@ -81,13 +77,7 @@ class Thresholding(Chain):
 
         result[self._op(image, threshold)] = 1.0
 
-        Y, X = np.ogrid[:4096, :4096]
-
-        dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
-
-        mask = dist_from_center <= radius
-
-        result[~mask] = np.nan
+        result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
         result = closing(result, square(3))
 
@@ -106,12 +96,11 @@ class Thresholding(Chain):
 
 class LimbDarkeningCorrection(Chain):
 
+    def __init__(self, operation_name, radius_factor=None):
+        super().__init__(operation_name)
+        self._radius_factor = radius_factor
+
     def _do_limb_darkening_correction(self, image, header):
-        radius = header['R_SUN']
-
-        center_x = header['CRPIX1']
-
-        center_y = header['CRPIX2']
 
         small_image = skimage.transform.resize(
             image,
@@ -119,6 +108,8 @@ class LimbDarkeningCorrection(Chain):
             order=3,
             preserve_range=True
         )
+
+        small_image[np.isnan(small_image)] = 0.0
 
         small_median = scipy.signal.medfilt2d(small_image, 105)
 
@@ -131,13 +122,7 @@ class LimbDarkeningCorrection(Chain):
 
         result = np.divide(image, large_median)
 
-        Y, X = np.ogrid[:4096, :4096]
-
-        dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
-
-        mask = dist_from_center <= radius
-
-        result[~mask] = np.nan
+        result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
         return result
 
@@ -151,6 +136,10 @@ class LimbDarkeningCorrection(Chain):
 
 class AIAPrep(Chain):
 
+    def __init__(self, operation_name, radius_factor=None):
+        super().__init__(operation_name)
+        self._radius_factor = radius_factor
+
     def _do_aiaprep(self, data, header):
         header['HGLN_OBS'] = 0
 
@@ -161,21 +150,7 @@ class AIAPrep(Chain):
 
         aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)
 
-        radius = aiamap_afterprep.meta['R_SUN']
-
-        center_x = aiamap_afterprep.meta['CRPIX1']
-
-        center_y = aiamap_afterprep.meta['CRPIX2']
-
-        Y, X = np.ogrid[:4096, :4096]
-
-        dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
-
-        mask = dist_from_center <= radius
-
-        result = aiamap_afterprep.data.copy()
-
-        result[~mask] = np.nan
+        result = set_nan_to_non_sun(aiamap_afterprep.data, aiamap_afterprep.meta, factor=self._radius_factor)
 
         return result, aiamap_afterprep.meta
 
@@ -222,10 +197,11 @@ class MaskingMagnetograms(Chain):
             operation_name='mask',
             k=1.71,
             op=operator.ge,
-            post_processor=do_area_filtering
+            post_processor=do_area_filtering,
+            radius_factor=0.97
         ).set_prev(
-            LimbDarkeningCorrection(operation_name='ldr').set_prev(
-                AIAPrep(operation_name='aiaprep').set_prev(
+            LimbDarkeningCorrection(operation_name='ldr', radius_factor=0.97).set_prev(
+                AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
                     DownloadFiles(operation_name='data', fname_from_rec=True)
                 )
             )
@@ -234,14 +210,15 @@ class MaskingMagnetograms(Chain):
         hmi_ic_chain = Thresholding(
             operation_name='mask',
             k=-5,
-            op=operator.le
+            op=operator.le,
+            radius_factor=1.0
         ).set_prev(
-            AIAPrep(operation_name='aiaprep').set_prev(
+            AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
                 DownloadFiles(operation_name='data')
             )
         )
 
-        hmi_mag_chain = AIAPrep(operation_name='aiaprep').set_prev(
+        hmi_mag_chain = AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
             DownloadFiles(operation_name='data')
         )
 
