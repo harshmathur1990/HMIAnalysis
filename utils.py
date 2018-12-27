@@ -6,7 +6,6 @@ import sys
 import numpy as np
 from dto import File
 
-
 c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
 
 
@@ -21,7 +20,7 @@ def nth_repl(s, sub, repl, nth):
         i += 1
     # if i  is equal to nth we found nth matches so replace
     if i == nth:
-        return s[:find]+repl+s[find + len(sub):]
+        return s[:find] + repl + s[find + len(sub):]
     return s
 
 
@@ -58,7 +57,7 @@ def get_images(date_object, series='', cadence='', segment='image', wavelength=N
     r.wait()
 
     if r.status != 0:
-        sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(request_string. r.status))
+        sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(request_string.r.status))
         sys.exit(1)
 
     files_info = list()
@@ -72,13 +71,13 @@ def get_images(date_object, series='', cadence='', segment='image', wavelength=N
             else:
                 filename = removed_date_dots.replace(':', '').replace('{', '').replace('}', '') + 'magnetogram.fits'
         else:
-            filename = record.replace('[]', '.')\
-                           .replace('][', '.')\
-                           .replace('[', '.')\
-                           .replace(']', '.')\
-                           .replace(':', '')\
-                           .replace('-','')\
-                       +'fits'
+            filename = record.replace('[]', '.') \
+                           .replace('][', '.') \
+                           .replace('[', '.') \
+                           .replace(']', '.') \
+                           .replace(':', '') \
+                           .replace('-', '') \
+                       + 'fits'
 
         file = File(
             id=id,
@@ -99,9 +98,10 @@ def apply_mask(image, mask):
     :return:
     '''
 
-    image[mask==1] = 0.0
+    im = image.copy()
+    im[mask == 1.0] = 0.0
 
-    return image
+    return im
 
 
 def running_mean(images_list, previous_operation, operation_name='running_mean', window_size=1):
@@ -118,15 +118,13 @@ def running_mean(images_list, previous_operation, operation_name='running_mean',
     while end <= len(images_list):
         image = np.zeros(shape=(4096, 4096))
 
-
         for i in range(start, end):
             curr_image = images_list[i].get_fits_hdu(previous_operation.operation_name)
             curr_image.data[np.isnan(curr_image.data)] = 0.0
 
             image = np.add(image, curr_image.data)
 
-        image = np.divide(image, end-start)
-
+        image = np.divide(image, end - start)
 
         images_list[start].save(operation_name, image, curr_image.header)
 
@@ -139,7 +137,6 @@ def running_mean(images_list, previous_operation, operation_name='running_mean',
 
 
 def set_nan_to_non_sun(image, header, factor=1.0):
-
     if not factor:
         factor = 1.0
 
@@ -155,6 +152,8 @@ def set_nan_to_non_sun(image, header, factor=1.0):
 
     mask = dist_from_center <= (factor * radius)
 
-    image[~mask] = np.nan
+    im = image.copy()
 
-    return image
+    im[~mask] = np.nan
+
+    return im

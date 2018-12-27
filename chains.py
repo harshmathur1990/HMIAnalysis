@@ -65,7 +65,6 @@ class Thresholding(Chain):
         self._post_processor=post_processor
         self._radius_factor = radius_factor
 
-
     def _do_thresholding(self, image, header):
 
         mean = np.nanmean(image)
@@ -79,7 +78,7 @@ class Thresholding(Chain):
 
         result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
-        result = closing(result, square(3)) # 1.8 sec per call
+        result = closing(result, square(3))  # 1.8 sec per call, 4% of the program
 
         return result
 
@@ -111,7 +110,7 @@ class LimbDarkeningCorrection(Chain):
 
         small_image[np.isnan(small_image)] = 0.0
 
-        small_median = scipy.signal.medfilt2d(small_image, 105) # Slow, 20 secs per call
+        small_median = scipy.signal.medfilt2d(small_image, 105)  # Slow, 20 secs per call, 30% time of the program
 
         large_median = skimage.transform.resize(
             small_median,
@@ -148,7 +147,7 @@ class AIAPrep(Chain):
             header
         )
 
-        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap) # Slow, 7 secs per call
+        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)  # Slow, 7 secs per call, 36% of the program
 
         result = set_nan_to_non_sun(aiamap_afterprep.data, aiamap_afterprep.meta, factor=self._radius_factor)
 
@@ -232,8 +231,12 @@ class MaskingMagnetograms(Chain):
         hmi_mag_image = file.get_fits_hdu(previous_operation_hmi_mag.operation_name)
 
         masked_image = copy.deepcopy(hmi_mag_image.data)
-        masked_image = apply_mask(masked_image, aia_mask.data)
-        masked_image = apply_mask(masked_image, hmi_ic_mask.data)
+
+        total_mask = np.add(aia_mask, hmi_ic_mask)
+
+        total_mask[total_mask >=1.0] = 1.0
+
+        masked_image = apply_mask(masked_image, total_mask)
 
         self._aia_file.delete('mask')
         self._hmi_ic_file.delete('mask')

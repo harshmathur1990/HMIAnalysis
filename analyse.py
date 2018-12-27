@@ -80,7 +80,7 @@ def analyse_images(start_date, end_date):
 
 
 def run():
-    today = datetime.datetime.utcnow().date() - timedelta(days=10)
+    today = datetime.datetime.utcnow().date() - timedelta(days=11)
     week_before = today - timedelta(days=3 * 365)
     result = analyse_images(week_before, week_before)
 
