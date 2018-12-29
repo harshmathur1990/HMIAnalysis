@@ -1,11 +1,14 @@
 from abc import abstractmethod, ABC
 import copy
+from concurrent.futures import ProcessPoolExecutor
+
 import numpy as np
 import sys
 import operator
 import skimage.transform
 import scipy.signal
 import skimage.draw
+import skimage.filters
 import sunpy.map
 import sunpy.instr.aia
 from skimage.measure import label, regionprops
@@ -169,6 +172,20 @@ class DownloadFiles(Chain):
         file.download_file(fname_from_rec=self._fname_from_rec)
 
 
+def do_area_filtering(mask):
+    area_per_pixel = (0.6 / 60) * (0.6 / 60)
+
+    pixel_in_onetenth_arcminute = 0.1 / area_per_pixel
+
+    label_image = label(mask)
+    regions = regionprops(label_image)
+    for region in regions:
+        if region.area < pixel_in_onetenth_arcminute:
+            for coords in region.coords:
+                mask[coords[0]][coords[1]] = 0.0
+    return mask
+
+
 class MaskingMagnetograms(Chain):
 
     def __init__(self, operation_name, aia_file, hmi_ic_file):
@@ -177,19 +194,6 @@ class MaskingMagnetograms(Chain):
         self._hmi_ic_file = hmi_ic_file
 
     def actual_process(self, file, previous_operation_name=None):
-
-        def do_area_filtering(mask):
-            area_per_pixel = (0.6 / 60) * (0.6 / 60)
-
-            pixel_in_onetenth_arcminute = 0.1 / area_per_pixel
-
-            label_image = label(mask)
-            regions = regionprops(label_image)
-            for region in regions:
-                if region.area < pixel_in_onetenth_arcminute:
-                    for coords in region.coords:
-                        mask[coords[0]][coords[1]] = 0.0
-            return mask
 
 
         aia_chain = Thresholding(
@@ -221,9 +225,32 @@ class MaskingMagnetograms(Chain):
             DownloadFiles(operation_name='data')
         )
 
-        previous_operation_aia = aia_chain.process(self._aia_file)
-        previous_operation_hmi_ic = hmi_ic_chain.process(self._hmi_ic_file)
-        previous_operation_hmi_mag = hmi_mag_chain.process(file)
+        future_list = list()
+
+        with ProcessPoolExecutor(max_workers=3) as executor:
+
+            future_list.append(
+                executor.submit(
+                    aia_chain.process,
+                    self._aia_file
+                )
+            )
+            future_list.append(
+                executor.submit(
+                    hmi_ic_chain.process,
+                    self._hmi_ic_file
+                )
+            )
+            future_list.append(
+                executor.submit(
+                    hmi_mag_chain.process,
+                    file
+                )
+            )
+
+        previous_operation_aia = future_list[0].result()
+        previous_operation_hmi_ic = future_list[1].result()
+        previous_operation_hmi_mag = future_list[2].result()
 
 
         aia_mask = self._aia_file.get_fits_hdu(previous_operation_aia.operation_name)
@@ -232,7 +259,7 @@ class MaskingMagnetograms(Chain):
 
         masked_image = copy.deepcopy(hmi_mag_image.data)
 
-        total_mask = np.add(aia_mask, hmi_ic_mask)
+        total_mask = np.add(aia_mask.data, hmi_ic_mask.data)
 
         total_mask[total_mask >=1.0] = 1.0
 

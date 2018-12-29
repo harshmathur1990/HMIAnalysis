@@ -1,18 +1,30 @@
 # -*- coding: utf-8 -*-
-import operator
 import sys
 import datetime
 from datetime import timedelta
-import os
-import copy
-from astropy.io import fits
-from skimage.measure import label, regionprops
+from concurrent.futures import ProcessPoolExecutor
 
 from chains import CreateCarringtonMap, MaskingMagnetograms
-from utils import running_mean, get_images, apply_mask
+from utils import running_mean, get_images
 
 
+def do_work_on_images(hmi_image, aia_image, vis_image):
+    hmi_chain = CreateCarringtonMap(
+        'carrington',
+        aia_file=aia_image,
+        hmi_ic_file=vis_image
+    ).set_prev(
+        MaskingMagnetograms(
+            'masked_magnetograms',
+            aia_file=aia_image,
+            hmi_ic_file=vis_image
+        )
+    )
 
+    previous_operation = hmi_chain.process(hmi_image)
+    hmi_image.delete('aiaprep')
+
+    return previous_operation
 
 
 def mag_variations(start_date, end_date):
@@ -30,40 +42,59 @@ def mag_variations(start_date, end_date):
     while _date <= end_date:
         sys.stdout.write('Date {}\n'.format(_date))
 
-        vis_images = get_images(
-            _date,
-            series='hmi.ic_nolimbdark_720s',
-            cadence='1d@720s',
-            segment='continuum'
-        )
+        future_list = list()
+        with ProcessPoolExecutor(max_workers=3) as executor:
 
-        aia_images = get_images(
-            _date,
-            series='aia.lev1_uv_24s',
-            cadence='1d@720s',
-            segment='image',
-            wavelength=1600
-        )
-
-        hmi_images = get_images(_date, series='hmi.M_720s', cadence='1d@720s', segment='magnetogram')
-
-        for hmi_image, aia_image, vis_image in zip(hmi_images, aia_images, vis_images):
-            hmi_chain = CreateCarringtonMap(
-                'carrington',
-                aia_file=aia_image,
-                hmi_ic_file=vis_image
-            ).set_prev(
-                MaskingMagnetograms(
-                    'masked_magnetograms',
-                    aia_file=aia_image,
-                    hmi_ic_file=vis_image
+            future_list.append(
+                executor.submit(
+                    get_images,
+                    _date,
+                    'hmi.ic_nolimbdark_720s',
+                    '1d@720s',
+                    'continuum'
                 )
             )
 
+            future_list.append(
+                executor.submit(
+                    get_images,
+                    _date,
+                    'aia.lev1_uv_24s',
+                    '1d@720s',
+                    'image',
+                    1600
+                )
+            )
 
-            previous_operation = hmi_chain.process(hmi_image)
-            hmi_image.delete('aiaprep')
+            future_list.append(
+                executor.submit(
+                    get_images,
+                    _date,
+                    'hmi.M_720s',
+                    '1d@720s',
+                    'magnetogram'
+                )
+            )
 
+        vis_images = future_list[0].result()
+        aia_images = future_list[1].result()
+        hmi_images = future_list[2].result()
+
+        outer_executor = ProcessPoolExecutor(max_workers=4)
+
+        future_list = list()
+        for hmi_image, aia_image, vis_image in zip(hmi_images, aia_images, vis_images):
+            future_list.append(
+                outer_executor.submit(
+                    do_work_on_images,
+                    hmi_image,
+                    aia_image,
+                    vis_image
+                )
+            )
+
+        for _future in future_list:
+            previous_operation = _future.result()
         running_mean_hmi = running_mean(hmi_images, previous_operation, window_size=10)
         running_mean_hmi = running_mean(running_mean_hmi, previous_operation, operation_name='mean', window_size=len(running_mean_hmi))
         result_list.append(running_mean_hmi[0])
@@ -80,7 +111,7 @@ def analyse_images(start_date, end_date):
 
 
 def run():
-    today = datetime.datetime.utcnow().date() - timedelta(days=11)
+    today = datetime.datetime.utcnow().date() - timedelta(days=13)
     week_before = today - timedelta(days=3 * 365)
     result = analyse_images(week_before, week_before)
 

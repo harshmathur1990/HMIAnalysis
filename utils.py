@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import traceback
-import os
 import drms
 import sys
 import numpy as np
@@ -125,6 +123,8 @@ def running_mean(images_list, previous_operation, operation_name='running_mean',
             image = np.add(image, curr_image.data)
 
         image = np.divide(image, end - start)
+
+        image = set_nan_to_non_sun(image, curr_image.header, factor=0.97)
 
         images_list[start].save(operation_name, image, curr_image.header)
 
