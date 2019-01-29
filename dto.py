@@ -38,7 +38,8 @@ class File(object):
         filename = self._filename
         if suffix:
             filename = suffix + '_' + self._filename
-        return os.path.join(directory, self._date.strftime('%Y.%m.%d'), filename)
+        return os.path.join(
+            directory, self._date.strftime('%Y.%m.%d'), filename)
 
     def get_path(self, directory, suffix):
         return self._get_path(directory, suffix=suffix)
@@ -63,7 +64,8 @@ class File(object):
     def _get_header_object(self, header):
         header = header.copy()
 
-        # The comments need to be added to the header separately from the normal
+        # The comments need to be added to the
+        # header separately from the normal
         # kwargs. Find and deal with them:
         fits_header = fits.Header()
         # Check Header
@@ -87,7 +89,8 @@ class File(object):
 
         if isinstance(key_comments, dict):
             for k, v in key_comments.items():
-                # Check that the Card for the comment exists before trying to write to it.
+                # Check that the Card for the comment exists
+                # before trying to write to it.
                 if k in fits_header:
                     fits_header.comments[k] = v
         elif key_comments:
@@ -120,14 +123,19 @@ class File(object):
 
     def download_file(self, output_dir='data', fname_from_rec=False):
 
-        if not os.path.isdir(output_dir + '/' + self._date.strftime('%Y.%m.%d')):
+        date_folder = output_dir + '/' + \
+            self._date.strftime('%Y.%m.%d')
+        if not os.path.isdir(
+                output_dir + '/' + self._date.strftime('%Y.%m.%d')):
             os.mkdir(output_dir + '/' + self._date.strftime('%Y.%m.%d'))
 
-        if not os.path.exists(output_dir + '/' + self._date.strftime('%Y.%m.%d') + self.filename):
+        if not os.path.exists(
+                date_folder + self.filename
+        ):
             sys.stdout.write(
                 '{} does not exist, downloading...\n'.format(self.filename))
             self.request.download(
-                output_dir + '/' + self._date.strftime('%Y.%m.%d'), self.id, fname_from_rec=fname_from_rec)
+                date_folder, self.id, fname_from_rec=fname_from_rec)
 
         else:
             sys.stdout.write('{} exists, skipping...\n'.format(self.filename))
