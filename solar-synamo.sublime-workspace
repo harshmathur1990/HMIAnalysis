@@ -1,0 +1,509 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"fil",
+				"filename"
+			],
+			[
+				"chil",
+				"child"
+			],
+			[
+				"chi",
+				"child_dict"
+			],
+			[
+				"fi",
+				"final_dict"
+			],
+			[
+				"lin",
+				"line"
+			],
+			[
+				"ln",
+				"lines"
+			],
+			[
+				"pa",
+				"app_page_image_url"
+			],
+			[
+				"a",
+				"app_page_image_url"
+			],
+			[
+				"SOu",
+				"SOURCE_DATABASE_SQL"
+			],
+			[
+				"DES",
+				"DESTINATION_DATABASE_SQL"
+			],
+			[
+				"SOURCE",
+				"SOURCE_DATABASE"
+			],
+			[
+				"D",
+				"DEST"
+			],
+			[
+				"h",
+				"HOME_DIRECTORY"
+			],
+			[
+				"DE",
+				"DESTINATION_DATABASE"
+			],
+			[
+				"DA",
+				"DBNAME"
+			],
+			[
+				"HO",
+				"HOME_DIRECTORY"
+			],
+			[
+				"SOU",
+				"SOURCE_HOST"
+			],
+			[
+				"SOUR",
+				"SOURCE_DATABASE"
+			],
+			[
+				"collection",
+				"collections"
+			],
+			[
+				"s",
+				"stdin"
+			],
+			[
+				"lay",
+				"layout_instances"
+			],
+			[
+				"layou",
+				"layout_attribute_values"
+			],
+			[
+				"layout",
+				"layout_instances"
+			],
+			[
+				"l",
+				"layout_instance_id"
+			],
+			[
+				"co",
+				"cout"
+			],
+			[
+				"in",
+				"include"
+			],
+			[
+				"re",
+				"return"
+			],
+			[
+				"prim",
+				"primes_encountered"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "analyse.py",
+			"settings":
+			{
+				"buffer_size": 5576,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"contents": "# -*- coding: utf-8 -*-\nimport warnings\nimport drms\nimport sys\nimport numpy as np\nfrom dto import File\n\nc = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)\n\n\ndef nth_repl(s, sub, repl, nth):\n    find = s.find(sub)\n    # if find is not p1 we have found at least one match for the substring\n    i = find != -1\n    # loop util we find the nth or we find no match\n    while find != -1 and i != nth:\n        # find + 1 means we start at the last match start index + 1\n        find = s.find(sub, find + 1)\n        i += 1\n    # if i  is equal to nth we found nth matches so replace\n    if i == nth:\n        return s[:find] + repl + s[find + len(sub):]\n    return s\n\n\ndef get_images(date_object, series='', cadence='', segment='image', wavelength=None):\n    \"\"\"\n    :param date_object:\n    :param series: series name to fetch images\n    :param cadence: 1d@1h\n    :param segment: default: image, options are continuum, magnetogram, dopplergram\n    :param wavelength: default: None\n    :return: list of file names\n    \"\"\"\n\n    if wavelength:\n        request_string = '{}[{}/{}][{}]{{{}}}'.format(\n            series,\n            date_object.strftime('%Y.%m.%d_TAI'),\n            cadence,\n            wavelength,\n            segment\n        )\n    else:\n        request_string = '{}[{}/{}]{{{}}}'.format(\n            series,\n            date_object.strftime('%Y.%m.%d_TAI'),\n            cadence,\n            segment\n        )\n\n    sys.stdout.write('Creating Export Request: {}\\n'.format(request_string))\n\n    r = c.export(request_string, protocol='fits')\n\n    try:\n        r.wait()\n    except Exception as e:\n        traceback.\n\n    if r.status != 0:\n        sys.stdout.write('Error for Export Request: {} Status:{}\\n'.format(request_string.r.status))\n        sys.exit(1)\n\n    files_info = list()\n    for id, record in enumerate(r.urls.record):\n        if series.startswith('hmi'):\n            intermediate = record.replace('[]', '.').replace('][', '.').replace('[', '.').replace(']', '.')\n            another_intermediate = nth_repl(intermediate, '.', '', 3)\n            removed_date_dots = nth_repl(another_intermediate, '.', '', 3)\n            if segment == 'continuum':\n                filename = removed_date_dots.replace(':', '').replace('{', '').replace('}', '') + 'continuum.fits'\n            else:\n                filename = removed_date_dots.replace(':', '').replace('{', '').replace('}', '') + 'magnetogram.fits'\n        else:\n            filename = record.replace('[]', '.') \\\n                           .replace('][', '.') \\\n                           .replace('[', '.') \\\n                           .replace(']', '.') \\\n                           .replace(':', '') \\\n                           .replace('-', '') \\\n                       + 'fits'\n\n        file = File(\n            id=id,\n            filename=filename,\n            r=r,\n            date_object=date_object\n        )\n\n        files_info.append(file)\n\n    return files_info\n\n\ndef apply_mask(image, mask):\n    '''\n    sets the pixels as zero according to binary mask\n    :param image:\n    :param mask:\n    :return:\n    '''\n\n    im = image.copy()\n    im[mask == 1.0] = 0.0\n\n    return im\n\n\ndef running_mean(images_list, previous_operation, operation_name='running_mean', window_size=1, suffix=None):\n    '''\n    :param images_list:\n    :param window_size: running mean size\n    :return:\n    '''\n    start = 0\n    end = window_size\n\n    resultant_images = list()\n\n    while end <= len(images_list):\n\n        if images_list[start].is_exist_in_directory(operation_name, suffix=suffix):\n            resultant_images.append(images_list[start])\n            start += window_size\n            end += window_size\n            continue\n\n        image = np.zeros(shape=(4096, 4096))\n\n        for i in range(start, end):\n            curr_image = images_list[i].get_fits_hdu(previous_operation.operation_name)\n            curr_image.data[np.isnan(curr_image.data)] = 0.0\n\n            image = np.add(image, curr_image.data)\n\n        image = np.divide(image, end - start)\n\n        image = set_nan_to_non_sun(image, curr_image.header, factor=0.97)\n\n        images_list[start].save(operation_name, image, curr_image.header, suffix=suffix)\n\n        resultant_images.append(images_list[start])\n\n        start += window_size\n        end += window_size\n\n    return resultant_images\n\n\ndef set_nan_to_non_sun(image, header, factor=1.0):\n    if not factor:\n        factor = 1.0\n\n    radius = header['R_SUN']\n\n    center_x = header['CRPIX1']\n\n    center_y = header['CRPIX2']\n\n    Y, X = np.ogrid[:image.shape[0], :image.shape[1]]\n\n    dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)\n\n    mask = dist_from_center <= (factor * radius)\n\n    im = image.copy()\n\n    im[~mask] = np.nan\n\n    return im\n",
+			"file": "utils.py",
+			"file_size": 4706,
+			"file_write_time": 131929072806543708,
+			"settings":
+			{
+				"buffer_size": 4765,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 392.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"Packa",
+				"Package Control: Install Package"
+			],
+			[
+				"Install",
+				"Package Control: Install Package"
+			],
+			[
+				"Inatll",
+				"Package Control: Install Package"
+			],
+			[
+				"",
+				"Install Package Control"
+			]
+		],
+		"width": 449.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/Users/harshmathur/Documents/CourseworkRepo/SolarDynamo"
+	],
+	"file_history":
+	[
+		"/Users/harshmathur/Documents/CourseworkRepo/Mtech/detector_profile.py",
+		"/Users/harshmathur/Desktop/Screen Shot 2018-10-10 at 11.37.53 AM.png",
+		"/Users/harshmathur/Documents/CourseworkRepo/limb_darkening/env/lib/python3.7/site-packages/astropy/io/fits/tests/test_core.py",
+		"/Users/harshmathur/Documents/CourseworkRepo/Internship/lab_6_august.py",
+		"/Users/harshmathur/Documents/CourseworkRepo/Jupyter Filtes/2 element interferometry simulation.ipynb",
+		"/Users/harshmathur/Documents/CourseworkRepo/Internship/antenna_design.py",
+		"/Users/harshmathur/Documents/CourseworkRepo/Internship/correlation_radio.py",
+		"/Users/harshmathur/Downloads/exportfile.csh",
+		"/Users/harshmathur/Downloads/least_squares_circle_v1d.py",
+		"/Users/harshmathur/Documents/Softwares/iraf.macx.x86_64/README.install",
+		"/Users/harshmathur/Documents/Project Priority.txt",
+		"/Users/harshmathur/Documents/pyserial/pyserial-3.4/setup.py",
+		"/Users/harshmathur/Documents/Code/i.cpp",
+		"/Users/harshmathur/Documents/Code/ab.cpp",
+		"/Users/harshmathur/Documents/Code/prime.cpp",
+		"/Users/harshmathur/Documents/Code/prime.c",
+		"/Users/harshmathur/Documents/Books/Radiative_Transfer.txt",
+		"/Users/harshmathur/Downloads/Windows_7_Loader/ZIP PASSWORD.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/Internship/echelle_grating.py",
+		"/Users/harshmathur/Documents/Ebe Hands on/SSRT_20100613_053000_59.fit.gz_down copy.csv",
+		"/Users/harshmathur/Documents/Ebe Hands on/SSRT_20100613_053000_59.fit.gz.csv",
+		"/Users/harshmathur/Documents/Ebe Hands on/2003jan23gbd2.csv",
+		"/Users/harshmathur/Desktop/script",
+		"/Users/harshmathur/Desktop/495.csv",
+		"/Users/harshmathur/Documents/work_sutff/hex_codes_tags.sql",
+		"/Users/harshmathur/Downloads/fresnel_square.m",
+		"/Users/harshmathur/Downloads/18-07-14  09.46.01(539).xlsx",
+		"/Users/harshmathur/Downloads/UpdatedSheet_4Jul.csv",
+		"/Users/harshmathur/JuggernautListenerService.conf",
+		"/Users/harshmathur/Documents/repositories/user-persistence-service/input.json",
+		"/Users/harshmathur/Documents/repositories/user-persistence-service/{",
+		"/Users/harshmathur/Desktop/do.sh",
+		"/Users/harshmathur/Documents/repositories/user-persistence-service/Book_migration.csv",
+		"/Users/harshmathur/Desktop/Category Work/Nahi mile.txt",
+		"/Users/harshmathur/Desktop/Category Work/skeleton.json",
+		"/Users/harshmathur/Desktop/Category Work/category_skeleton.py",
+		"/Users/harshmathur/Documents/repositories/pg_backup/mongo_staging_sync/sync.sh",
+		"/Users/harshmathur/Documents/repositories/pg_backup/mask.sql",
+		"/Users/harshmathur/Documents/work_sutff/dump/mongo_sync_staging.sh",
+		"/Users/harshmathur/Documents/work_sutff/dump/backup.sh",
+		"/Users/harshmathur/Documents/work_sutff/dump/mongo_sync_staging",
+		"/Users/harshmathur/Downloads/blurringnew.m",
+		"/Users/harshmathur/Documents/repositories/pg_backup/{",
+		"/Users/harshmathur/Documents/repositories/pg_backup/rename_db.sql",
+		"/Users/harshmathur/Documents/repositories/pg_backup/backup.sh",
+		"/Users/harshmathur/Documents/repositories/pg_backup/untitled.sh",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/SuggestedSearches.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/WritingPlatformTopPics.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/SerialisedBooks.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/NewAndNoteworthy.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/pages.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/final.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Serialised Books.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Tags.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/TagsPage.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/explore.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/New releases in bigraphy.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/cate-popular-in-biography.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Popular authors.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Bestsellingbooks.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Trending.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Continue Reading.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Blockbuster.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Suggested Searches.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Writing Platform Top pics.json",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/Collections.json",
+		"/Users/harshmathur/Documents/work_sutff/cron_restart.sh",
+		"/Users/harshmathur/Documents/work_sutff/New Discover/New and Noteworthy.json",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/40be06fec92b465b9696c2a33751fc14.sh",
+		"/Users/harshmathur/Documents/fuckup/85e67a29ba3c4b0d/85e67a29ba3c4b0d-offline/sections/section-2.json",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/original_msg (29).txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/env/lib/python2.7/site-packages/scipy-1.0.0.dist-info/RECORD",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/not-spam/file1",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file33.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file32.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file31.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file30.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file29.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file28.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file27.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file26.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file25.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file23.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file24.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file22.html",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file21.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file20.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file19.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file18.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file17.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file16.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file15.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file14.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file13.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file12.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file11.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file10.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file9.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file8.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file7.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file6.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file5.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file4.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file3.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file2.txt",
+		"/Users/harshmathur/Documents/CourseworkRepo/learn_ml/samples/nb/spam/file1.txt",
+		"/Users/harshmathur/Desktop/5109cdba806343d8b3cf16d4577afc39_00572208a2e742f397f7e082aa40ae2e_coupon-APOLLO.json",
+		"/Users/harshmathur/Desktop/8a73fff9a2fa4ceb81be01adce4052e3_5.6.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files/feb1bced07e14b69b636e27261d76358/feb1bced07e14b69b636e27261d76358_2018-02-01T11_39_33.059Z.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files/feb1bced07e14b69b636e27261d76358/feb1bced07e14b69b636e27261d76358_2018-01-16T10_28_40.439Z.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files/feb1bced07e14b69b636e27261d76358/feb1bced07e14b69b636e27261d76358_2018-01-16T10_27_24.615Z.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files/feb1bced07e14b69b636e27261d76358/feb1bced07e14b69b636e27261d76358_2018-01-14T13_08_59.858Z.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files/feb1bced07e14b69b636e27261d76358/feb1bced07e14b69b636e27261d76358_2018-01-14T12_56_19.707Z.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files/feb1bced07e14b69b636e27261d76358/feb1bced07e14b69b636e27261d76358_2018-01-12T09_48_58.143Z.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files/feb1bced07e14b69b636e27261d76358/feb1bced07e14b69b636e27261d76358_2018-01-12T09_48_56.188Z.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files/feb1bced07e14b69b636e27261d76358/feb1bced07e14b69b636e27261d76358_2017-06-23T12_15_04.948Z.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_list.txt",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/user_book_files.sh",
+		"/Users/harshmathur/Documents/fuckup/book_62423a704de340308422cb7fdf14974d_1515393860.txt",
+		"/Users/harshmathur/Documents/fuckup/1ab04b511fee46ce/1ab04b511fee46ce-offline/sections/section-3.json",
+		"/Users/harshmathur/Documents/work_sutff/aws_fetch_script/comunity_books_fetch.sh",
+		"/Users/harshmathur/Documents/fuckup/a4e0a75c12ef4a70/a4e0a75c12ef4a70-offline/sections/section-1.json",
+		"/Users/harshmathur/Documents/fuckup/01d70d55c6004d28/01d70d55c6004d28-offline/sections/section-2.json",
+		"/Users/harshmathur/Downloads/086b0fc8aefe42deac51febe8b9399c41517465689.02.txt",
+		"/Users/harshmathur/Downloads/book_05b1e767ffd3441ea621d3d9be630c36_1518011859.txt",
+		"/Users/harshmathur/Documents/work_sutff/republish_books.csv",
+		"/Users/harshmathur/Documents/work_sutff/see_all_layouts_script.py",
+		"/Users/harshmathur/Documents/work_sutff/see_all.sql"
+	],
+	"find":
+	{
+		"height": 40.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 1,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "analyse.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 5576,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								483,
+								483
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "utils.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4765,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1035,
+								1035
+							],
+							[
+								1054,
+								1054
+							],
+							[
+								1243,
+								1243
+							]
+						],
+						"settings":
+						{
+							"git_gutter_is_enabled": true,
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 200.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 26.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "solar-synamo.sublime-project",
+	"replace":
+	{
+		"height": 48.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 150.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

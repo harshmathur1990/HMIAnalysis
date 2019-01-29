@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 from abc import abstractmethod, ABC
 import copy
 from concurrent.futures import ProcessPoolExecutor
-
 import numpy as np
 import sys
 import operator
@@ -32,8 +32,16 @@ class Chain(ABC):
         return self
 
     def process(self, file):
+        sys.stdout.write(
+            'Operation: {}, File: {} Checking for result\n'.format(
+                self._operation_name, file.filename)
+        )
         if not file.is_exist_in_directory(self._operation_name):
-            sys.stdout.write('Operation: {}, File: {} performing operation\n'.format(self._operation_name, file.filename))
+            sys.stdout.write(
+                'Operation: {}, File: {} Result not available\n'.format(
+                    self._operation_name, file.filename
+                )
+            )
 
             previous_operation_name = None
             previous = None
@@ -41,6 +49,12 @@ class Chain(ABC):
             if self._prev:
                 previous = self._prev.process(file)
                 previous_operation_name = previous.operation_name
+
+            sys.stdout.write(
+                'Operation: {}, File: {} Performing Operation\n'.format(
+                    self._operation_name, file.filename
+                )
+            )
 
             _actual_result = self.actual_process(file, previous_operation_name)
 
@@ -50,22 +64,33 @@ class Chain(ABC):
 
                 file.delete(previous_operation_name)
         else:
-            sys.stdout.write('Operation: {}, File: {} reusing result\n'.format(self._operation_name, file.filename))
+            sys.stdout.write(
+                'Operation: {}, File: {} reusing result\n'.format(
+                    self._operation_name, file.filename
+                )
+            )
 
         return self
 
     @abstractmethod
-    def actual_process(self, file, previous_operation_name=None):
+    def actual_process(self, file=None, previous_operation_name=None):
         pass
 
 
 class Thresholding(Chain):
 
-    def __init__(self, operation_name, k, op, post_processor=None, radius_factor=None):
+    def __init__(
+        self,
+        operation_name,
+        k,
+        op,
+        post_processor=None,
+        radius_factor=None
+    ):
         super().__init__(operation_name)
         self._k = k
         self._op = op
-        self._post_processor=post_processor
+        self._post_processor = post_processor
         self._radius_factor = radius_factor
 
     def _do_thresholding(self, image, header):
@@ -81,11 +106,13 @@ class Thresholding(Chain):
 
         result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
-        result = closing(result, square(3))  # 1.8 sec per call, 4% of the program
+        # 1.8 sec per call, 4% of the program
+        result = closing(result, square(3))
 
         return result
 
-    def actual_process(self, file, previous_operation_name=None):
+    def actual_process(self, file=None, previous_operation_name=None):
+
         fits_array = file.get_fits_hdu(previous_operation_name)
 
         image = self._do_thresholding(fits_array.data, fits_array.header)
@@ -113,7 +140,8 @@ class LimbDarkeningCorrection(Chain):
 
         small_image[np.isnan(small_image)] = 0.0
 
-        small_median = scipy.signal.medfilt2d(small_image, 105)  # Slow, 20 secs per call, 30% time of the program
+        # Slow, 20 secs per call, 30% time of the program
+        small_median = scipy.signal.medfilt2d(small_image, 105)
 
         large_median = skimage.transform.resize(
             small_median,
@@ -128,10 +156,11 @@ class LimbDarkeningCorrection(Chain):
 
         return result
 
-    def actual_process(self, file, previous_operation_name=None):
+    def actual_process(self, file=None, previous_operation_name=None):
         fits_array = file.get_fits_hdu(previous_operation_name)
 
-        image = self._do_limb_darkening_correction(fits_array.data, fits_array.header)
+        image = self._do_limb_darkening_correction(
+            fits_array.data, fits_array.header)
 
         return image, fits_array.header
 
@@ -150,13 +179,16 @@ class AIAPrep(Chain):
             header
         )
 
-        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)  # Slow, 7 secs per call, 36% of the program
+        # Slow, 7 secs per call, 36% of the program
+        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)
 
-        result = set_nan_to_non_sun(aiamap_afterprep.data, aiamap_afterprep.meta, factor=self._radius_factor)
+        result = set_nan_to_non_sun(
+            aiamap_afterprep.data,
+            aiamap_afterprep.meta, factor=self._radius_factor)
 
         return result, aiamap_afterprep.meta
 
-    def actual_process(self, file, previous_operation_name=None):
+    def actual_process(self, file=None, previous_operation_name=None):
         fits_array = file.get_fits_hdu(previous_operation_name)
 
         return self._do_aiaprep(fits_array.data, fits_array.header)
@@ -168,7 +200,7 @@ class DownloadFiles(Chain):
         super().__init__(operation_name)
         self._fname_from_rec = fname_from_rec
 
-    def actual_process(self, file, previous_operation_name=None):
+    def actual_process(self, file=None, previous_operation_name=None):
         file.download_file(fname_from_rec=self._fname_from_rec)
 
 
@@ -193,8 +225,7 @@ class MaskingMagnetograms(Chain):
         self._aia_file = aia_file
         self._hmi_ic_file = hmi_ic_file
 
-    def actual_process(self, file, previous_operation_name=None):
-
+    def actual_process(self, file=None, previous_operation_name=None):
 
         aia_chain = Thresholding(
             operation_name='mask',
@@ -203,7 +234,10 @@ class MaskingMagnetograms(Chain):
             post_processor=do_area_filtering,
             radius_factor=0.97
         ).set_prev(
-            LimbDarkeningCorrection(operation_name='ldr', radius_factor=0.97).set_prev(
+            LimbDarkeningCorrection(
+                operation_name='ldr',
+                radius_factor=0.97
+            ).set_prev(
                 AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
                     DownloadFiles(operation_name='data', fname_from_rec=True)
                 )
@@ -221,7 +255,10 @@ class MaskingMagnetograms(Chain):
             )
         )
 
-        hmi_mag_chain = AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
+        hmi_mag_chain = AIAPrep(
+            operation_name='aiaprep',
+            radius_factor=1.0
+        ).set_prev(
             DownloadFiles(operation_name='data')
         )
 
@@ -252,16 +289,18 @@ class MaskingMagnetograms(Chain):
         previous_operation_hmi_ic = future_list[1].result()
         previous_operation_hmi_mag = future_list[2].result()
 
-
-        aia_mask = self._aia_file.get_fits_hdu(previous_operation_aia.operation_name)
-        hmi_ic_mask = self._hmi_ic_file.get_fits_hdu(previous_operation_hmi_ic.operation_name)
-        hmi_mag_image = file.get_fits_hdu(previous_operation_hmi_mag.operation_name)
+        aia_mask = self._aia_file.get_fits_hdu(
+            previous_operation_aia.operation_name)
+        hmi_ic_mask = self._hmi_ic_file.get_fits_hdu(
+            previous_operation_hmi_ic.operation_name)
+        hmi_mag_image = file.get_fits_hdu(
+            previous_operation_hmi_mag.operation_name)
 
         masked_image = copy.deepcopy(hmi_mag_image.data)
 
         total_mask = np.add(aia_mask.data, hmi_ic_mask.data)
 
-        total_mask[total_mask >=1.0] = 1.0
+        total_mask[total_mask >= 1.0] = 1.0
 
         masked_image = apply_mask(masked_image, total_mask)
 
@@ -277,7 +316,7 @@ class CreateCarringtonMap(Chain):
         self._aia_file = aia_file
         self._hmi_ic_file = hmi_ic_file
 
-    def actual_process(self, file, previous_operation_name=None):
+    def actual_process(self, file=None, previous_operation_name=None):
         # The file is HMI Magnetogram masked image.
         # If the file exists, use it and extract the map information,
         # else create the file using the chaining.

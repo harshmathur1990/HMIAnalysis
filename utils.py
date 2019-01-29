@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import traceback
 import drms
 import sys
 import numpy as np
@@ -22,12 +23,19 @@ def nth_repl(s, sub, repl, nth):
     return s
 
 
-def get_images(date_object, series='', cadence='', segment='image', wavelength=None):
+def get_images(
+    date_object,
+    series='',
+    cadence='',
+    segment='image',
+    wavelength=None
+):
     """
     :param date_object:
     :param series: series name to fetch images
     :param cadence: 1d@1h
-    :param segment: default: image, options are continuum, magnetogram, dopplergram
+    :param segment: default: image, options are continuum
+    magnetogram, dopplergram
     :param wavelength: default: None
     :return: list of file names
     """
@@ -52,35 +60,47 @@ def get_images(date_object, series='', cadence='', segment='image', wavelength=N
 
     r = c.export(request_string, protocol='fits')
 
-    r.wait()
+    try:
+        r.wait()
+    except Exception as e:
+        err = traceback.format_exc()
+        sys.stdout.write(err)
+        sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(
+            request_string, r.status))
+        sys.exit(1)
 
     if r.status != 0:
-        sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(request_string.r.status))
+        sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(
+            request_string, r.status))
         sys.exit(1)
 
     files_info = list()
     for id, record in enumerate(r.urls.record):
         if series.startswith('hmi'):
-            intermediate = record.replace('[]', '.').replace('][', '.').replace('[', '.').replace(']', '.')
+            intermediate = record.replace('[]', '.').replace(
+                '][', '.').replace('[', '.').replace(']', '.')
             another_intermediate = nth_repl(intermediate, '.', '', 3)
             removed_date_dots = nth_repl(another_intermediate, '.', '', 3)
             if segment == 'continuum':
-                filename = removed_date_dots.replace(':', '').replace('{', '').replace('}', '') + 'continuum.fits'
+                filename = removed_date_dots.replace(':', '').replace(
+                    '{', '').replace('}', '') + 'continuum.fits'
             else:
-                filename = removed_date_dots.replace(':', '').replace('{', '').replace('}', '') + 'magnetogram.fits'
+                filename = removed_date_dots.replace(':', '').replace(
+                    '{', '').replace('}', '') + 'magnetogram.fits'
         else:
             filename = record.replace('[]', '.') \
-                           .replace('][', '.') \
-                           .replace('[', '.') \
-                           .replace(']', '.') \
-                           .replace(':', '') \
-                           .replace('-', '') \
-                       + 'fits'
+                .replace('][', '.') \
+                .replace('[', '.') \
+                .replace(']', '.') \
+                .replace(':', '') \
+                .replace('-', '') \
+                + 'fits'
 
         file = File(
             id=id,
             filename=filename,
-            r=r
+            r=r,
+            date_object=date_object
         )
 
         files_info.append(file)
@@ -102,7 +122,13 @@ def apply_mask(image, mask):
     return im
 
 
-def running_mean(images_list, previous_operation, operation_name='running_mean', window_size=1):
+def running_mean(
+    images_list,
+    previous_operation,
+    operation_name='running_mean',
+    window_size=1,
+    suffix=None
+):
     '''
     :param images_list:
     :param window_size: running mean size
@@ -114,10 +140,20 @@ def running_mean(images_list, previous_operation, operation_name='running_mean',
     resultant_images = list()
 
     while end <= len(images_list):
+
+        if images_list[start].is_exist_in_directory(
+            operation_name, suffix=suffix
+        ):
+            resultant_images.append(images_list[start])
+            start += window_size
+            end += window_size
+            continue
+
         image = np.zeros(shape=(4096, 4096))
 
         for i in range(start, end):
-            curr_image = images_list[i].get_fits_hdu(previous_operation.operation_name)
+            curr_image = images_list[i].get_fits_hdu(
+                previous_operation.operation_name)
             curr_image.data[np.isnan(curr_image.data)] = 0.0
 
             image = np.add(image, curr_image.data)
@@ -126,7 +162,8 @@ def running_mean(images_list, previous_operation, operation_name='running_mean',
 
         image = set_nan_to_non_sun(image, curr_image.header, factor=0.97)
 
-        images_list[start].save(operation_name, image, curr_image.header)
+        images_list[start].save(operation_name, image,
+                                curr_image.header, suffix=suffix)
 
         resultant_images.append(images_list[start])
 
