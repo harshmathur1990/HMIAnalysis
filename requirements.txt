@@ -1,4 +1,4 @@
 scipy
 sunpy
 scikit-image
-drms
+git+https://github.com/harshmathur1990/drms.git@master

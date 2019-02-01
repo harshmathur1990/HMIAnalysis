@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import traceback
 import drms
 import sys
@@ -58,7 +59,14 @@ def get_images(
 
     sys.stdout.write('Creating Export Request: {}\n'.format(request_string))
 
-    r = c.export(request_string, protocol='fits')
+    try:
+        r = c.export(request_string, protocol='fits')
+    except Exception as e:
+        err = traceback.format_exc()
+        sys.stdout.write(err)
+        sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(
+            request_string, r.status))
+        os._exit(1)
 
     try:
         r.wait()
@@ -67,12 +75,12 @@ def get_images(
         sys.stdout.write(err)
         sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(
             request_string, r.status))
-        sys.exit(1)
+        os._exit(1)
 
     if r.status != 0:
         sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(
             request_string, r.status))
-        sys.exit(1)
+        os._exit(1)
 
     files_info = list()
     for id, record in enumerate(r.urls.record):

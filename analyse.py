@@ -203,7 +203,7 @@ def mag_variations(
 
 def analyse_images(start_date, end_date):
     mean_list = mag_variations(
-        start_date, end_date)
+        start_date, end_date, max_super_outer_executor=1)
     return mean_list
     # car_map = get_car_map(result)
 

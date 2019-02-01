@@ -4,6 +4,8 @@ import sys
 from astropy.io import fits
 import sunpy.io.fits
 import matplotlib.pyplot as plt
+from six.moves.urllib.error import HTTPError, URLError
+from decorator import retry
 
 
 class File(object):
@@ -93,6 +95,7 @@ class File(object):
     def delete_data(self):
         self._delete('data')
 
+    @retry((HTTPError, URLError))
     def download_file(self, output_dir='data', fname_from_rec=False):
 
         date_folder = output_dir + '/' + \
