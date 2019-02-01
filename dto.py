@@ -2,6 +2,7 @@
 import os
 import sys
 from astropy.io import fits
+import sunpy.io.fits
 import matplotlib.pyplot as plt
 
 
@@ -59,53 +60,24 @@ class File(object):
                 rv_fits_hdu = fits_hdu
                 break
 
+        if directory == 'data':
+            plt.imsave(
+                path + '.png',
+                rv_fits_hdu.data,
+                cmap='gray',
+                format='png'
+            )
+
         return rv_fits_hdu
-
-    def _get_header_object(self, header):
-        header = header.copy()
-
-        # The comments need to be added to the
-        # header separately from the normal
-        # kwargs. Find and deal with them:
-        fits_header = fits.Header()
-        # Check Header
-        key_comments = header.pop('KEYCOMMENTS', False)
-
-        for k, v in header.items():
-            if isinstance(v, fits.header._HeaderCommentaryCards):
-                if k == 'comment':
-                    comments = str(v).split('\n')
-                    for com in comments:
-                        fits_header.add_comment(com)
-                elif k == 'history':
-                    hists = str(v).split('\n')
-                    for hist in hists:
-                        fits_header.add_history(hist)
-                elif k != '':
-                    fits_header.append(fits.Card(k, str(v).split('\n')))
-
-            else:
-                fits_header.append(fits.Card(k, v))
-
-        if isinstance(key_comments, dict):
-            for k, v in key_comments.items():
-                # Check that the Card for the comment exists
-                # before trying to write to it.
-                if k in fits_header:
-                    fits_header.comments[k] = v
-        elif key_comments:
-            raise TypeError("KEYCOMMENTS must be a dictionary")
-
-        return fits_header
 
     def save(self, operation_name, data, header, suffix=None):
         filename = self._get_path(operation_name, suffix=suffix)
         sys.stdout.write('Saving {}\n'.format(filename))
-        hdu = fits.PrimaryHDU()
-        header_object = self._get_header_object(header)
-        comp_hdu = fits.CompImageHDU(data=data, header=header_object)
-        hdul = fits.HDUList([hdu, comp_hdu])
-        hdul.writeto(filename, output_verify='ignore')
+        sunpy.io.fits.write(
+            filename,
+            data,
+            header
+        )
         plt.imsave(filename + '.png', data, cmap='gray', format='png')
 
     def _delete(self, operation_name):

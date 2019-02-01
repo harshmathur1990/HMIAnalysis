@@ -203,14 +203,15 @@ def mag_variations(
 
 def analyse_images(start_date, end_date):
     mean_list = mag_variations(
-        start_date, end_date, max_super_outer_executor=1)
+        start_date, end_date)
     return mean_list
     # car_map = get_car_map(result)
 
 
 def run():
-    today = datetime.date(year=2015, month=12, day=17)
-    analyse_images(today, today)
+    from_date = datetime.date(year=2015, month=11, day=16)
+    to_date = datetime.date(year=2015, month=12, day=17)
+    analyse_images(from_date, to_date)
 
 
 if __name__ == '__main__':
