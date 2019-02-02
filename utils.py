@@ -6,8 +6,15 @@ import sys
 import numpy as np
 from multiprocessing import Semaphore
 
+try:
+    c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
+except Exception:
+    err = traceback.format_exc()
+    sys.stdout.write('Failed to Create the Drms Client\n')
+    sys.stdout.write(err)
+    os._exit(1)
 
-c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
+
 sem = Semaphore(3)
 
 
