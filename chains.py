@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from abc import abstractmethod, ABC
 import copy
-from concurrent.futures import ProcessPoolExecutor
+# from concurrent.futures import ProcessPoolExecutor
+from user_pools import NoDaemonPool as Pool
 import numpy as np
 import sys
 import operator
@@ -264,30 +265,30 @@ class MaskingMagnetograms(Chain):
 
         future_list = list()
 
-        with ProcessPoolExecutor(max_workers=3) as executor:
+        with Pool(3) as executor:
 
             future_list.append(
-                executor.submit(
+                executor.apply_async(
                     aia_chain.process,
-                    self._aia_file
+                    args=(self._aia_file,)
                 )
             )
             future_list.append(
-                executor.submit(
+                executor.apply_async(
                     hmi_ic_chain.process,
-                    self._hmi_ic_file
+                    args=(self._hmi_ic_file,)
                 )
             )
             future_list.append(
-                executor.submit(
+                executor.apply_async(
                     hmi_mag_chain.process,
-                    file
+                    args=(file,)
                 )
             )
 
-        previous_operation_aia = future_list[0].result()
-        previous_operation_hmi_ic = future_list[1].result()
-        previous_operation_hmi_mag = future_list[2].result()
+        previous_operation_aia = future_list[0].get()
+        previous_operation_hmi_ic = future_list[1].get()
+        previous_operation_hmi_mag = future_list[2].get()
 
         aia_mask = self._aia_file.get_fits_hdu(
             previous_operation_aia.operation_name)

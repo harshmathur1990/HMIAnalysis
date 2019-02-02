@@ -6,6 +6,7 @@ import sunpy.io.fits
 import matplotlib.pyplot as plt
 from six.moves.urllib.error import HTTPError, URLError
 from decorator import retry
+from utils import sem
 
 
 class File(object):
@@ -109,8 +110,19 @@ class File(object):
         ):
             sys.stdout.write(
                 '{} does not exist, downloading...\n'.format(self.filename))
+            sys.stdout.write(
+                'Value of Semaphore before downloading: {}\n'.format(sem)
+            )
+            sem.acquire()
+            sys.stdout.write(
+                'Value of Semaphore while downloading: {}\n'.format(sem)
+            )
             self.request.download(
                 date_folder, self.id, fname_from_rec=fname_from_rec)
+            sem.release()
+            sys.stdout.write(
+                'Value of Semaphore after downloading: {}\n'.format(sem)
+            )
 
         else:
             sys.stdout.write('{} exists, skipping...\n'.format(self.filename))

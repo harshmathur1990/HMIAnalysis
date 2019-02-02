@@ -4,9 +4,11 @@ import traceback
 import drms
 import sys
 import numpy as np
-from dto import File
+from multiprocessing import Semaphore
+
 
 c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
+sem = Semaphore(3)
 
 
 def nth_repl(s, sub, repl, nth):
@@ -57,17 +59,31 @@ def get_images(
             segment
         )
 
-    sys.stdout.write('Creating Export Request: {}\n'.format(request_string))
-
     try:
+        sys.stdout.write(
+            'Value of Semaphore before making export Request: {}\n'.format(sem)
+        )
+        sem.acquire()
+        sys.stdout.write(
+            'Creating Export Request: {}\n'.format(request_string)
+        )
+        sys.stdout.write(
+            'Value of Semaphore while making export Request: {}\n'.format(sem)
+        )
         r = c.export(request_string, protocol='fits')
         r.wait()
     except Exception:
         err = traceback.format_exc()
-        sys.stdout.write(err)
         sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(
-            request_string, r.status))
+            request_string, r.status)
+        )
+        sys.stdout.write(err)
         os._exit(1)
+    else:
+        sem.release()
+        sys.stdout.write(
+            'Value of Semaphore after making export Request: {}\n'.format(sem)
+        )
 
     if r.status != 0:
         sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(
@@ -96,6 +112,7 @@ def get_images(
                 .replace('-', '') \
                 + 'fits'
 
+        from dto import File
         file = File(
             id=id,
             filename=filename,
