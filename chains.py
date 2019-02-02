@@ -265,26 +265,26 @@ class MaskingMagnetograms(Chain):
 
         future_list = list()
 
-        with Pool(3) as executor:
+        executor = Pool(3)
 
-            future_list.append(
-                executor.apply_async(
-                    aia_chain.process,
-                    args=(self._aia_file,)
-                )
+        future_list.append(
+            executor.apply_async(
+                aia_chain.process,
+                args=(self._aia_file,)
             )
-            future_list.append(
-                executor.apply_async(
-                    hmi_ic_chain.process,
-                    args=(self._hmi_ic_file,)
-                )
+        )
+        future_list.append(
+            executor.apply_async(
+                hmi_ic_chain.process,
+                args=(self._hmi_ic_file,)
             )
-            future_list.append(
-                executor.apply_async(
-                    hmi_mag_chain.process,
-                    args=(file,)
-                )
+        )
+        future_list.append(
+            executor.apply_async(
+                hmi_mag_chain.process,
+                args=(file,)
             )
+        )
 
         previous_operation_aia = future_list[0].get()
         previous_operation_hmi_ic = future_list[1].get()
