@@ -219,6 +219,10 @@ def do_area_filtering(mask):
     return mask
 
 
+def function_proxy(func, *args):
+    return func(*args)
+
+
 class MaskingMagnetograms(Chain):
 
     def __init__(self, operation_name, aia_file, hmi_ic_file):
@@ -228,6 +232,11 @@ class MaskingMagnetograms(Chain):
 
     def actual_process(self, file=None, previous_operation_name=None):
 
+        sys.stdout.write(
+            'Started The Process for MaskingMagnetograms :{}\n'.format(
+                file.filename
+            )
+        )
         aia_chain = Thresholding(
             operation_name='mask',
             k=1.71,
@@ -263,32 +272,53 @@ class MaskingMagnetograms(Chain):
             DownloadFiles(operation_name='data')
         )
 
+        sys.stdout.write(
+            'Created The Chains for MaskingMagnetograms :{}\n'.format(
+                file.filename
+            )
+        )
+
         future_list = list()
 
         executor = Pool(3)
 
         future_list.append(
             executor.apply_async(
-                aia_chain.process,
-                args=(self._aia_file,)
+                function_proxy,
+                args=(
+                    aia_chain.process,
+                    self._aia_file,
+                )
             )
         )
         future_list.append(
             executor.apply_async(
-                hmi_ic_chain.process,
-                args=(self._hmi_ic_file,)
+                function_proxy,
+                args=(
+                    hmi_ic_chain.process,
+                    self._hmi_ic_file,
+                )
             )
         )
         future_list.append(
             executor.apply_async(
-                hmi_mag_chain.process,
-                args=(file,)
+                function_proxy,
+                args=(
+                    hmi_mag_chain.process,
+                    file,
+                )
             )
         )
 
         previous_operation_aia = future_list[0].get()
         previous_operation_hmi_ic = future_list[1].get()
         previous_operation_hmi_mag = future_list[2].get()
+
+        sys.stdout.write(
+            'Performed all the chains for : {}'.format(
+                file.filename
+            )
+        )
 
         aia_mask = self._aia_file.get_fits_hdu(
             previous_operation_aia.operation_name)
