@@ -81,8 +81,8 @@ def get_images(
         r.wait()
     except Exception:
         err = traceback.format_exc()
-        sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(
-            request_string, r.status)
+        sys.stdout.write('Error for Export Request: {}\n'.format(
+            request_string)
         )
         sys.stdout.write(err)
         os._exit(1)
