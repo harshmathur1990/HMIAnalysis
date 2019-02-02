@@ -5,6 +5,7 @@ import drms
 import sys
 import numpy as np
 from multiprocessing import Semaphore
+from decorator import retry
 
 try:
     c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
@@ -33,6 +34,7 @@ def nth_repl(s, sub, repl, nth):
     return s
 
 
+@retry((Exception,))
 def get_images(
     date_object,
     series='',
