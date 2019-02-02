@@ -9,6 +9,13 @@ from utils import running_mean, get_images
 
 
 def do_work_on_images(hmi_image, aia_image, vis_image):
+    sys.stdout.write(
+        'Working on Files: {}:{}:{}\n'.format(
+            hmi_image.filename,
+            aia_image.filename,
+            vis_image.filename
+        )
+    )
     hmi_chain = CreateCarringtonMap(
         'carrington',
         aia_file=aia_image,
@@ -78,7 +85,9 @@ def process_for_date(
     aia_images = future_list[1].get()
     hmi_images = future_list[2].get()
 
-    executor.close()
+    sys.stdout.write(
+        'Got All Images List for Date {}\n'.format(_date)
+    )
 
     outer_executor = Pool(max_outer_executor)
 
@@ -102,8 +111,6 @@ def process_for_date(
 
         for _future in future_list:
             previous_operation = _future.get()
-
-        outer_executor.close()
 
         intermediate_running_mean_hmi = running_mean(
             hmi_images,
@@ -166,8 +173,6 @@ def process_for_date(
 
         for _delete_element in delete_list:
             _delete_element.get()
-
-        delete_outer_executor.close()
 
         return running_mean_hmi[0]
 

@@ -15,7 +15,7 @@ except Exception:
     os._exit(1)
 
 
-sem = Semaphore(3)
+sem = Semaphore(value=3)
 
 
 def nth_repl(s, sub, repl, nth):
