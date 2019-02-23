@@ -270,7 +270,7 @@ def analyse_images(start_date, end_date):
 
 
 def run():
-    from_date = datetime.date(year=2015, month=11, day=16)
+    from_date = datetime.date(year=2015, month=12, day=17)
     to_date = datetime.date(year=2015, month=12, day=17)
     analyse_images(from_date, to_date)
 
