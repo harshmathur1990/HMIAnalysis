@@ -4,7 +4,7 @@ import traceback
 import drms
 import sys
 import numpy as np
-from multiprocessing import Semaphore
+# from multiprocessing import Semaphore
 from decor import retry
 
 
@@ -17,7 +17,7 @@ except Exception:
     os._exit(1)
 
 
-sem = Semaphore(value=1)
+# sem = Semaphore(value=1)
 
 
 def nth_repl(s, sub, repl, nth):
@@ -70,16 +70,16 @@ def get_images(
         )
 
     try:
-        sys.stdout.write(
-            'Value of Semaphore before making export Request: {}\n'.format(sem)
-        )
+        # sys.stdout.write(
+        # 'Value of Semaphore before making export Request: {}\n'.format(sem)
+        # )
         # sem.acquire()
         sys.stdout.write(
             'Creating Export Request: {}\n'.format(request_string)
         )
-        sys.stdout.write(
-            'Value of Semaphore while making export Request: {}\n'.format(sem)
-        )
+        # sys.stdout.write(
+        # 'Value of Semaphore while making export Request: {}\n'.format(sem)
+        # )
         r = c.export(request_string, protocol='fits')
         r.wait()
     except Exception as e:
@@ -91,10 +91,11 @@ def get_images(
         sys.stdout.write(err)
         raise e
     else:
+        pass
         # sem.release()
-        sys.stdout.write(
-            'Value of Semaphore after making export Request: {}\n'.format(sem)
-        )
+        # sys.stdout.write(
+        # 'Value of Semaphore after making export Request: {}\n'.format(sem)
+        # )
 
     if r.status != 0:
         sys.stdout.write('Error for Export Request: {} Status:{}\n'.format(

@@ -3,7 +3,7 @@ import sys
 import datetime
 from datetime import timedelta
 # from concurrent.futures import ProcessPoolExecutor
-from user_pools import NoDaemonPool as Pool
+# from user_pools import NoDaemonPool as Pool
 from chains import CreateCarringtonMap, MaskingMagnetograms
 from utils import running_mean, get_images
 
@@ -41,7 +41,7 @@ def process_for_date(
 ):
     sys.stdout.write('Date {}\n'.format(_date))
 
-    future_list = list()
+    # future_list = list()
     # executor = Pool(3)
 
     # future_list.append(
@@ -128,28 +128,34 @@ def process_for_date(
         'Got All Images List for Date {}\n'.format(_date)
     )
 
-    outer_executor = Pool(max_outer_executor)
+    # outer_executor = Pool(max_outer_executor)
 
     if not hmi_images[0].is_exist_in_directory('mean') or \
         not hmi_images[0].is_exist_in_directory(
             'mean', suffix='smoothed'):
 
-        future_list = list()
+        # future_list = list()
         for hmi_image, aia_image, vis_image in zip(
                 hmi_images, aia_images, vis_images):
-            future_list.append(
-                outer_executor.apply_async(
-                    do_work_on_images,
-                    args=(
-                        hmi_image,
-                        aia_image,
-                        vis_image,
-                    )
-                )
-            )
 
-        for _future in future_list:
-            previous_operation = _future.get()
+            previous_operation = do_work_on_images(
+                hmi_image,
+                aia_image,
+                vis_image
+            )
+            # future_list.append(
+            #     outer_executor.apply_async(
+            #         do_work_on_images,
+            #         args=(
+            #             hmi_image,
+            #             aia_image,
+            #             vis_image,
+            #         )
+            #     )
+            # )
+
+        # for _future in future_list:
+        #     previous_operation = _future.get()
 
         intermediate_running_mean_hmi = running_mean(
             hmi_images,
@@ -174,44 +180,53 @@ def process_for_date(
 
         sys.stdout.write('Deleting Data for {}\n'.format(_date))
 
-        delete_outer_executor = Pool(
-            max_delete_outer_executor
-        )
+        # delete_outer_executor = Pool(
+        #     max_delete_outer_executor
+        # )
 
-        delete_list = list()
+        # delete_list = list()
 
         for hmi_image, aia_image, vis_image in zip(
                 hmi_images, aia_images, vis_images):
-            delete_list.append(
-                delete_outer_executor.apply_async(
-                    hmi_image.delete,
-                    args=(previous_operation.operation_name,)
-                )
+            hmi_image.delete(
+                previous_operation.operation_name
             )
-            delete_list.append(
-                delete_outer_executor.apply_async(
-                    hmi_image.delete,
-                    args=('running_mean',)
-                )
+            hmi_image.delete(
+                'running_mean'
             )
-            delete_list.append(
-                delete_outer_executor.apply_async(
-                    aia_image.delete_data
-                )
-            )
-            delete_list.append(
-                delete_outer_executor.apply_async(
-                    vis_image.delete_data
-                )
-            )
-            delete_list.append(
-                delete_outer_executor.apply_async(
-                    hmi_image.delete_data
-                )
-            )
+            aia_image.delete_data()
+            vis_image.delete_data()
+            hmi_image.delete_data()
+            # delete_list.append(
+            #     delete_outer_executor.apply_async(
+            #         hmi_image.delete,
+            #         args=(previous_operation.operation_name,)
+            #     )
+            # )
+            # delete_list.append(
+            #     delete_outer_executor.apply_async(
+            #         hmi_image.delete,
+            #         args=('running_mean',)
+            #     )
+            # )
+            # delete_list.append(
+            #     delete_outer_executor.apply_async(
+            #         aia_image.delete_data
+            #     )
+            # )
+            # delete_list.append(
+            #     delete_outer_executor.apply_async(
+            #         vis_image.delete_data
+            #     )
+            # )
+            # delete_list.append(
+            #     delete_outer_executor.apply_async(
+            #         hmi_image.delete_data
+            #     )
+            # )
 
-        for _delete_element in delete_list:
-            _delete_element.get()
+        # for _delete_element in delete_list:
+        #     _delete_element.get()
 
         return running_mean_hmi[0]
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from abc import abstractmethod, ABC
 # from concurrent.futures import ProcessPoolExecutor
-from user_pools import NoDaemonPool as Pool
+# from user_pools import NoDaemonPool as Pool
 import numpy as np
 import sys
 import operator
@@ -315,53 +315,67 @@ class MaskingMagnetograms(Chain):
             )
         )
 
-        future_list = list()
+        previous_operation_aia_plages = aia_chain_plages.process(
+            self._aia_file,
+            'plages'
+        )
+        previous_operation_active_networks = aia_chain_active_networks.process(
+            self._aia_file,
+            'active_networks'
+        )
+        previous_operation_hmi_ic = hmi_ic_chain.process(
+            self._hmi_ic_file
+        )
+        previous_operation_hmi_mag = hmi_mag_chain.process(
+            file
+        )
+        # future_list = list()
 
-        executor = Pool(4)
+        # executor = Pool(4)
 
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    aia_chain_plages.process,
-                    self._aia_file,
-                    'plages'
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    aia_chain_active_networks.process,
-                    self._aia_file,
-                    'active_networks'
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    hmi_ic_chain.process,
-                    self._hmi_ic_file,
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    hmi_mag_chain.process,
-                    file,
-                )
-            )
-        )
+        # future_list.append(
+        #     executor.apply_async(
+        #         function_proxy,
+        #         args=(
+        #             aia_chain_plages.process,
+        #             self._aia_file,
+        #             'plages'
+        #         )
+        #     )
+        # )
+        # future_list.append(
+        #     executor.apply_async(
+        #         function_proxy,
+        #         args=(
+        #             aia_chain_active_networks.process,
+        #             self._aia_file,
+        #             'active_networks'
+        #         )
+        #     )
+        # )
+        # future_list.append(
+        #     executor.apply_async(
+        #         function_proxy,
+        #         args=(
+        #             hmi_ic_chain.process,
+        #             self._hmi_ic_file,
+        #         )
+        #     )
+        # )
+        # future_list.append(
+        #     executor.apply_async(
+        #         function_proxy,
+        #         args=(
+        #             hmi_mag_chain.process,
+        #             file,
+        #         )
+        #     )
+        # )
 
-        previous_operation_aia_plages = future_list[0].get()
-        previous_operation_active_networks = future_list[1].get()
-        previous_operation_hmi_ic = future_list[2].get()
-        previous_operation_hmi_mag = future_list[3].get()
+        # previous_operation_aia_plages = future_list[0].get()
+        # previous_operation_active_networks = future_list[1].get()
+        # previous_operation_hmi_ic = future_list[2].get()
+        # previous_operation_hmi_mag = future_list[3].get()
 
         sys.stdout.write(
             'Performed all the chains for : {}'.format(
