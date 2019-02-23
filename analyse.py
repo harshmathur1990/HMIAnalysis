@@ -237,27 +237,33 @@ def mag_variations(
 
     sys.stdout.write('Starting Process\n')
 
-    super_outer_executor = Pool(
-        max_super_outer_executor)
+    # super_outer_executor = Pool(
+    # max_super_outer_executor)
 
-    date_element_list = list()
+    # date_element_list = list()
 
     while _date <= end_date:
-        date_element_list.append(
-            super_outer_executor.apply_async(
-                process_for_date,
-                args=(
-                    _date,
-                    max_outer_executor,
-                    max_delete_outer_executor,
-                )
-            )
+        mean_result = process_for_date(
+            _date,
+            max_outer_executor,
+            max_delete_outer_executor
         )
+        mean_list.append(mean_result)
+        # date_element_list.append(
+        #     super_outer_executor.apply_async(
+        #         process_for_date,
+        #         args=(
+        #             _date,
+        #             max_outer_executor,
+        #             max_delete_outer_executor,
+        #         )
+        #     )
+        # )
         _date = _date + timedelta(days=1)
 
-    for date_element in date_element_list:
-        mean_result = date_element.get()
-        mean_list.append(mean_result)
+    # for date_element in date_element_list:
+        # mean_result = date_element.get()
+        # mean_list.append(mean_result)
 
     return mean_list
 
