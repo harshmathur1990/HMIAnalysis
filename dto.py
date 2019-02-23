@@ -5,7 +5,7 @@ from astropy.io import fits
 import sunpy.io.fits
 import matplotlib.pyplot as plt
 from six.moves.urllib.error import HTTPError, URLError
-from decorator import retry
+from decor import retry
 from utils import sem
 
 
@@ -51,8 +51,8 @@ class File(object):
     def is_exist_in_directory(self, directory, suffix=None):
         return os.path.exists(self._get_path(directory, suffix=suffix))
 
-    def get_fits_hdu(self, directory):
-        path = self._get_path(directory)
+    def get_fits_hdu(self, directory, suffix=None):
+        path = self._get_path(directory, suffix=suffix)
         fits_image = fits.open(path)
 
         rv_fits_hdu = None
@@ -87,9 +87,9 @@ class File(object):
         path_to_be_deleted = self._get_path(operation_name)
         os.remove(path_to_be_deleted)
 
-    def delete(self, operation_name):
+    def delete(self, operation_name, suffix=None):
         if operation_name and self.filename and operation_name != 'data':
-            path_to_be_deleted = self._get_path(operation_name)
+            path_to_be_deleted = self._get_path(operation_name, suffix=suffix)
             if os.path.exists(path_to_be_deleted):
                 self._delete(operation_name)
 
@@ -113,13 +113,13 @@ class File(object):
             sys.stdout.write(
                 'Value of Semaphore before downloading: {}\n'.format(sem)
             )
-            sem.acquire()
+            # sem.acquire()
             sys.stdout.write(
                 'Value of Semaphore while downloading: {}\n'.format(sem)
             )
             self.request.download(
                 date_folder, self.id, fname_from_rec=fname_from_rec)
-            sem.release()
+            # sem.release()
             sys.stdout.write(
                 'Value of Semaphore after downloading: {}\n'.format(sem)
             )

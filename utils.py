@@ -5,7 +5,8 @@ import drms
 import sys
 import numpy as np
 from multiprocessing import Semaphore
-from decorator import retry
+from decor import retry
+
 
 try:
     c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
@@ -16,7 +17,7 @@ except Exception:
     os._exit(1)
 
 
-sem = Semaphore(value=3)
+sem = Semaphore(value=1)
 
 
 def nth_repl(s, sub, repl, nth):
@@ -72,7 +73,7 @@ def get_images(
         sys.stdout.write(
             'Value of Semaphore before making export Request: {}\n'.format(sem)
         )
-        sem.acquire()
+        # sem.acquire()
         sys.stdout.write(
             'Creating Export Request: {}\n'.format(request_string)
         )
@@ -81,15 +82,16 @@ def get_images(
         )
         r = c.export(request_string, protocol='fits')
         r.wait()
-    except Exception:
+    except Exception as e:
+        # sem.release()
         err = traceback.format_exc()
         sys.stdout.write('Error for Export Request: {}\n'.format(
             request_string)
         )
         sys.stdout.write(err)
-        os._exit(1)
+        raise e
     else:
-        sem.release()
+        # sem.release()
         sys.stdout.write(
             'Value of Semaphore after making export Request: {}\n'.format(sem)
         )

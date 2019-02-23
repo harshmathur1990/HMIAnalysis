@@ -42,48 +42,87 @@ def process_for_date(
     sys.stdout.write('Date {}\n'.format(_date))
 
     future_list = list()
-    executor = Pool(3)
+    # executor = Pool(3)
 
-    future_list.append(
-        executor.apply_async(
-            get_images,
-            args=(
-                _date,
-                'hmi.ic_nolimbdark_720s',
-                '1d@720s',
-                'continuum',
-            )
-        )
+    # future_list.append(
+    #     executor.apply_async(
+    #         get_images,
+    #         args=(
+    #             _date,
+    #             'hmi.ic_nolimbdark_720s',
+    #             '1d@720s',
+    #             'continuum',
+    #         )
+    #     )
+    # )
+
+    # future_list.append(
+    #     executor.apply_async(
+    #         get_images,
+    #         args=(
+    #             _date,
+    #             'aia.lev1_uv_24s',
+    #             '1d@720s',
+    #             'image',
+    #             1600,
+    #         )
+    #     )
+    # )
+
+    # future_list.append(
+    #     executor.apply_async(
+    #         get_images,
+    #         args=(
+    #             _date,
+    #             'hmi.M_720s',
+    #             '1d@720s',
+    #             'magnetogram',
+    #         )
+    #     )
+    # )
+
+    # vis_images = future_list[0].get()
+    # aia_images = future_list[1].get()
+    # hmi_images = future_list[2].get()
+
+    vis_images = get_images(
+        _date,
+        'hmi.ic_nolimbdark_720s',
+        '1d@720s',
+        'continuum'
     )
 
-    future_list.append(
-        executor.apply_async(
-            get_images,
-            args=(
-                _date,
-                'aia.lev1_uv_24s',
-                '1d@720s',
-                'image',
-                1600,
-            )
-        )
+    aia_images = get_images(
+        _date,
+        'aia.lev1_uv_24s',
+        '1d@720s',
+        'image',
+        1600
     )
 
-    future_list.append(
-        executor.apply_async(
-            get_images,
-            args=(
-                _date,
-                'hmi.M_720s',
-                '1d@720s',
-                'magnetogram',
-            )
-        )
+    hmi_images = get_images(
+        _date,
+        'hmi.M_720s',
+        '1d@720s',
+        'magnetogram'
     )
 
-    vis_images = future_list[0].get()
-    aia_images = future_list[1].get()
-    hmi_images = future_list[2].get()
+    all_images = list()
+
+    all_images.extend(
+        vis_images
+    )
+
+    all_images.extend(
+        aia_images
+    )
+
+    all_images.extend(
+        hmi_images
+    )
+
+    for image in all_images:
+        image.download_file()
 
     sys.stdout.write(
         'Got All Images List for Date {}\n'.format(_date)
@@ -225,7 +264,7 @@ def mag_variations(
 
 def analyse_images(start_date, end_date):
     mean_list = mag_variations(
-        start_date, end_date)
+        start_date, end_date, max_super_outer_executor=1)
     return mean_list
     # car_map = get_car_map(result)
 

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from abc import abstractmethod, ABC
-import copy
 # from concurrent.futures import ProcessPoolExecutor
 from user_pools import NoDaemonPool as Pool
 import numpy as np
@@ -32,7 +31,7 @@ class Chain(ABC):
         self._prev = chain
         return self
 
-    def process(self, file):
+    def process(self, file, suffix=None):
         sys.stdout.write(
             'Operation: {}, File: {} Checking for result\n'.format(
                 self._operation_name, file.filename)
@@ -61,7 +60,7 @@ class Chain(ABC):
 
             if _actual_result:
                 data, header = _actual_result
-                file.save(self._operation_name, data, header)
+                file.save(self._operation_name, data, header, suffix=suffix)
 
                 file.delete(previous_operation_name)
         else:
@@ -85,12 +84,16 @@ class Thresholding(Chain):
         operation_name,
         k,
         op,
+        k2=None,
+        op2=None,
         post_processor=None,
         radius_factor=None
     ):
         super().__init__(operation_name)
         self._k = k
         self._op = op
+        self._k2 = k2
+        self._op2 = op2
         self._post_processor = post_processor
         self._radius_factor = radius_factor
 
@@ -103,7 +106,15 @@ class Thresholding(Chain):
 
         result = np.zeros(shape=image.shape)
 
-        result[self._op(image, threshold)] = 1.0
+        if self._k2 and self._op2:
+            threshold_2 = mean + (self._k2 + std)
+
+            result[
+                self._op2(image, threshold_2) and self._op(image, threshold)
+            ] = 1.0
+
+        else:
+            result[self._op(image, threshold)] = 1.0
 
         result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
@@ -206,7 +217,7 @@ class DownloadFiles(Chain):
 
 
 def do_area_filtering(mask):
-    area_per_pixel = (0.6 / 60) * (0.6 / 60)
+    area_per_pixel = (0.5 / 60) * (0.5 / 60)
 
     pixel_in_onetenth_arcminute = 0.1 / area_per_pixel
 
@@ -237,7 +248,7 @@ class MaskingMagnetograms(Chain):
                 file.filename
             )
         )
-        aia_chain = Thresholding(
+        aia_chain_plages = Thresholding(
             operation_name='mask',
             k=1.71,
             op=operator.ge,
@@ -248,8 +259,34 @@ class MaskingMagnetograms(Chain):
                 operation_name='ldr',
                 radius_factor=0.97
             ).set_prev(
-                AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
-                    DownloadFiles(operation_name='data', fname_from_rec=True)
+                AIAPrep(
+                    operation_name='aiaprep', radius_factor=1.0
+                ).set_prev(
+                    DownloadFiles(
+                        operation_name='data', fname_from_rec=True
+                    )
+                )
+            )
+        )
+
+        aia_chain_active_networks = Thresholding(
+            operation_name='mask',
+            k=1.71,
+            op=operator.le,
+            k2=1.65,
+            op2=operator.ge,
+            radius_factor=0.97
+        ).set_prev(
+            LimbDarkeningCorrection(
+                operation_name='ldr',
+                radius_factor=0.97
+            ).set_prev(
+                AIAPrep(
+                    operation_name='aiaprep', radius_factor=1.0
+                ).set_prev(
+                    DownloadFiles(
+                        operation_name='data', fname_from_rec=True
+                    )
                 )
             )
         )
@@ -280,14 +317,25 @@ class MaskingMagnetograms(Chain):
 
         future_list = list()
 
-        executor = Pool(3)
+        executor = Pool(4)
 
         future_list.append(
             executor.apply_async(
                 function_proxy,
                 args=(
-                    aia_chain.process,
+                    aia_chain_plages.process,
                     self._aia_file,
+                    'plages'
+                )
+            )
+        )
+        future_list.append(
+            executor.apply_async(
+                function_proxy,
+                args=(
+                    aia_chain_active_networks.process,
+                    self._aia_file,
+                    'active_networks'
                 )
             )
         )
@@ -310,9 +358,10 @@ class MaskingMagnetograms(Chain):
             )
         )
 
-        previous_operation_aia = future_list[0].get()
-        previous_operation_hmi_ic = future_list[1].get()
-        previous_operation_hmi_mag = future_list[2].get()
+        previous_operation_aia_plages = future_list[0].get()
+        previous_operation_active_networks = future_list[1].get()
+        previous_operation_hmi_ic = future_list[2].get()
+        previous_operation_hmi_mag = future_list[3].get()
 
         sys.stdout.write(
             'Performed all the chains for : {}'.format(
@@ -320,22 +369,35 @@ class MaskingMagnetograms(Chain):
             )
         )
 
-        aia_mask = self._aia_file.get_fits_hdu(
-            previous_operation_aia.operation_name)
+        aia_mask_plages = self._aia_file.get_fits_hdu(
+            previous_operation_aia_plages.operation_name,
+            'plages'
+        )
+        aia_mask_active_networks = self._aia_file.get_fits_hdu(
+            previous_operation_active_networks.operation_name,
+            'active_networks'
+        )
         hmi_ic_mask = self._hmi_ic_file.get_fits_hdu(
             previous_operation_hmi_ic.operation_name)
         hmi_mag_image = file.get_fits_hdu(
             previous_operation_hmi_mag.operation_name)
 
-        masked_image = copy.deepcopy(hmi_mag_image.data)
+        masked_image = hmi_mag_image.copy()
 
-        total_mask = np.add(aia_mask.data, hmi_ic_mask.data)
+        total_mask = np.add(
+            np.add(
+                aia_mask_plages.data,
+                aia_mask_active_networks.data
+            ),
+            hmi_ic_mask.data
+        )
 
         total_mask[total_mask >= 1.0] = 1.0
 
         masked_image = apply_mask(masked_image, total_mask)
 
-        self._aia_file.delete('mask')
+        self._aia_file.delete('mask', suffix='plages')
+        self._aia_file.delete('mask', suffix='active_networks')
         self._hmi_ic_file.delete('mask')
         return masked_image, hmi_mag_image.header
 

@@ -4,7 +4,7 @@ import sys
 from functools import wraps
 
 
-def retry(exceptions, tries=4, delay=3, backoff=2):
+def retry(exceptions, tries=4, delay=10, backoff=2):
     """
     Retry calling the decorated function using an exponential backoff.
 
