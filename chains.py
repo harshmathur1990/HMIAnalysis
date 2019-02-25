@@ -110,7 +110,7 @@ class Thresholding(Chain):
             threshold_2 = mean + (self._k2 + std)
 
             result[
-                self._op2(image, threshold_2) and self._op(image, threshold)
+                self._op2(image, threshold_2) & self._op(image, threshold)
             ] = 1.0
 
         else:

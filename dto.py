@@ -101,12 +101,12 @@ class File(object):
 
         date_folder = output_dir + '/' + \
             self._date.strftime('%Y.%m.%d')
-        if not os.path.isdir(
-                output_dir + '/' + self._date.strftime('%Y.%m.%d')):
-            os.mkdir(output_dir + '/' + self._date.strftime('%Y.%m.%d'))
+
+        if not os.path.isdir(date_folder):
+            os.mkdir(date_folder)
 
         if not os.path.exists(
-                date_folder + self.filename
+                date_folder + '/' + self.filename
         ):
             sys.stdout.write(
                 '{} does not exist, downloading...\n'.format(self.filename))
