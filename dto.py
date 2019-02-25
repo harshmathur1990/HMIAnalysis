@@ -83,15 +83,15 @@ class File(object):
         )
         plt.imsave(filename + '.png', data, cmap='gray', format='png')
 
-    def _delete(self, operation_name):
-        path_to_be_deleted = self._get_path(operation_name)
+    def _delete(self, operation_name, suffix=None):
+        path_to_be_deleted = self._get_path(operation_name, suffix=suffix)
         os.remove(path_to_be_deleted)
 
     def delete(self, operation_name, suffix=None):
         if operation_name and self.filename and operation_name != 'data':
             path_to_be_deleted = self._get_path(operation_name, suffix=suffix)
             if os.path.exists(path_to_be_deleted):
-                self._delete(operation_name)
+                self._delete(operation_name, suffix=suffix)
 
     def delete_data(self):
         self._delete('data')

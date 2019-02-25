@@ -19,8 +19,9 @@ from utils import apply_mask, set_nan_to_non_sun
 
 class Chain(ABC):
 
-    def __init__(self, operation_name):
+    def __init__(self, operation_name, suffix=None):
         self._operation_name = operation_name
+        self._suffix = suffix
         self._prev = None
 
     @property
@@ -31,12 +32,13 @@ class Chain(ABC):
         self._prev = chain
         return self
 
-    def process(self, file, suffix=None):
+    def process(self, file):
         sys.stdout.write(
             'Operation: {}, File: {} Checking for result\n'.format(
                 self._operation_name, file.filename)
         )
-        if not file.is_exist_in_directory(self._operation_name):
+
+        if not file.is_exist_in_directory(self._operation_name, self._suffix):
             sys.stdout.write(
                 'Operation: {}, File: {} Result not available\n'.format(
                     self._operation_name, file.filename
@@ -56,11 +58,19 @@ class Chain(ABC):
                 )
             )
 
-            _actual_result = self.actual_process(file, previous_operation_name)
+            _actual_result = self.actual_process(
+                file,
+                previous_operation_name
+            )
 
             if _actual_result:
                 data, header = _actual_result
-                file.save(self._operation_name, data, header, suffix=suffix)
+                file.save(
+                    self._operation_name,
+                    data,
+                    header,
+                    suffix=self._suffix
+                )
 
                 file.delete(previous_operation_name)
         else:
@@ -84,18 +94,23 @@ class Thresholding(Chain):
         operation_name,
         k,
         op,
+        suffix=None,
         k2=None,
         op2=None,
         post_processor=None,
-        radius_factor=None
+        radius_factor=None,
+        value_1=1.0,
+        value_2=0.0
     ):
-        super().__init__(operation_name)
+        super().__init__(operation_name, suffix)
         self._k = k
         self._op = op
         self._k2 = k2
         self._op2 = op2
         self._post_processor = post_processor
         self._radius_factor = radius_factor
+        self._value_1 = value_1
+        self._value_2 = value_2
 
     def _do_thresholding(self, image, header):
 
@@ -106,15 +121,12 @@ class Thresholding(Chain):
 
         result = np.zeros(shape=image.shape)
 
+        result[self._op(image, threshold)] = self._value_1
+
         if self._k2 and self._op2:
             threshold_2 = mean + (self._k2 + std)
 
-            result[
-                self._op2(image, threshold_2) & self._op(image, threshold)
-            ] = 1.0
-
-        else:
-            result[self._op(image, threshold)] = 1.0
+            result[self._op2(image, threshold_2)] = self._value_2
 
         result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
@@ -250,6 +262,7 @@ class MaskingMagnetograms(Chain):
         )
         aia_chain_plages = Thresholding(
             operation_name='mask',
+            suffix='plages',
             k=1.71,
             op=operator.ge,
             post_processor=do_area_filtering,
@@ -271,11 +284,14 @@ class MaskingMagnetograms(Chain):
 
         aia_chain_active_networks = Thresholding(
             operation_name='mask',
-            k=1.71,
-            op=operator.le,
-            k2=1.65,
+            suffix='active_networks',
+            k=1.65,
+            op=operator.ge,
+            k2=1.71,
             op2=operator.ge,
-            radius_factor=0.97
+            radius_factor=0.97,
+            value_1=1.0,
+            value_2=0.0
         ).set_prev(
             LimbDarkeningCorrection(
                 operation_name='ldr',
@@ -293,6 +309,7 @@ class MaskingMagnetograms(Chain):
 
         hmi_ic_chain = Thresholding(
             operation_name='mask',
+            suffix=None,
             k=-5,
             op=operator.le,
             radius_factor=1.0
@@ -317,11 +334,9 @@ class MaskingMagnetograms(Chain):
 
         previous_operation_aia_plages = aia_chain_plages.process(
             self._aia_file,
-            'plages'
         )
         previous_operation_active_networks = aia_chain_active_networks.process(
             self._aia_file,
-            'active_networks'
         )
         previous_operation_hmi_ic = hmi_ic_chain.process(
             self._hmi_ic_file
@@ -329,53 +344,57 @@ class MaskingMagnetograms(Chain):
         previous_operation_hmi_mag = hmi_mag_chain.process(
             file
         )
-        # future_list = list()
 
-        # executor = Pool(4)
+        '''
+        future_list = list()
 
-        # future_list.append(
-        #     executor.apply_async(
-        #         function_proxy,
-        #         args=(
-        #             aia_chain_plages.process,
-        #             self._aia_file,
-        #             'plages'
-        #         )
-        #     )
-        # )
-        # future_list.append(
-        #     executor.apply_async(
-        #         function_proxy,
-        #         args=(
-        #             aia_chain_active_networks.process,
-        #             self._aia_file,
-        #             'active_networks'
-        #         )
-        #     )
-        # )
-        # future_list.append(
-        #     executor.apply_async(
-        #         function_proxy,
-        #         args=(
-        #             hmi_ic_chain.process,
-        #             self._hmi_ic_file,
-        #         )
-        #     )
-        # )
-        # future_list.append(
-        #     executor.apply_async(
-        #         function_proxy,
-        #         args=(
-        #             hmi_mag_chain.process,
-        #             file,
-        #         )
-        #     )
-        # )
+        executor = Pool(4)
 
-        # previous_operation_aia_plages = future_list[0].get()
-        # previous_operation_active_networks = future_list[1].get()
-        # previous_operation_hmi_ic = future_list[2].get()
-        # previous_operation_hmi_mag = future_list[3].get()
+        future_list.append(
+            executor.apply_async(
+                function_proxy,
+                args=(
+                    aia_chain_plages.process,
+                    self._aia_file,
+                    'plages'
+                )
+            )
+        )
+        future_list.append(
+            executor.apply_async(
+                function_proxy,
+                args=(
+                    aia_chain_active_networks.process,
+                    self._aia_file,
+                    'active_networks'
+                )
+            )
+        )
+        future_list.append(
+            executor.apply_async(
+                function_proxy,
+                args=(
+                    hmi_ic_chain.process,
+                    self._hmi_ic_file,
+                )
+            )
+        )
+        future_list.append(
+            executor.apply_async(
+                function_proxy,
+                args=(
+                    hmi_mag_chain.process,
+                    file,
+                )
+            )
+        )
+
+        previous_operation_aia_plages = future_list[0].get()
+        previous_operation_active_networks = future_list[1].get()
+        previous_operation_hmi_ic = future_list[2].get()
+        previous_operation_hmi_mag = future_list[3].get()
+
+        '''
 
         sys.stdout.write(
             'Performed all the chains for : {}'.format(
@@ -396,7 +415,7 @@ class MaskingMagnetograms(Chain):
         hmi_mag_image = file.get_fits_hdu(
             previous_operation_hmi_mag.operation_name)
 
-        masked_image = hmi_mag_image.copy()
+        masked_image = hmi_mag_image.data.copy()
 
         total_mask = np.add(
             np.add(
