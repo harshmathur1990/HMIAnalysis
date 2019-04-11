@@ -4,6 +4,7 @@ import os
 import datetime
 from datetime import timedelta
 import numpy as np
+import traceback
 # from concurrent.futures import ProcessPoolExecutor
 # from user_pools import NoDaemonPool as Pool
 from chains import CreateCarringtonMap, MaskingMagnetograms, SouvikRework
@@ -321,46 +322,55 @@ def souvik_verify(start_date, no_of_years):
 
     for index in np.arange(no_of_years):
 
-        sys.stdout.write('Startng work for Year: {}'.format(_start_date))
+        sys.stdout.write('Startng work for Year: {}\n'.format(_start_date))
 
-        vis_images = get_images(
-            _start_date,
-            'hmi.ic_nolimbdark_720s',
-            '365d@1d',
-            'continuum'
-        )
+        try:
+            vis_images = get_images(
+                _start_date,
+                'hmi.ic_nolimbdark_720s',
+                '365d@24h',
+                'continuum'
+            )
 
-        aia_images = get_images(
-            _start_date,
-            'aia.lev1_uv_24s',
-            '365d@1d',
-            'image',
-            1600
-        )
+            aia_images = get_images(
+                _start_date,
+                'aia.lev1_uv_24s',
+                '365d@24h',
+                'image',
+                1600
+            )
 
-        hmi_images = get_images(
-            _start_date,
-            'hmi.M_720s',
-            '365d@1d',
-            'magnetogram'
-        )
+            hmi_images = get_images(
+                _start_date,
+                'hmi.M_720s',
+                '365d@24h',
+                'magnetogram'
+            )
 
-        all_images = list()
+            all_images = list()
 
-        all_images.extend(
-            vis_images
-        )
+            all_images.extend(
+                vis_images
+            )
 
-        all_images.extend(
-            aia_images
-        )
+            all_images.extend(
+                aia_images
+            )
 
-        all_images.extend(
-            hmi_images
-        )
+            all_images.extend(
+                hmi_images
+            )
 
-        for image in all_images:
-            image.download_file()
+            for image in all_images:
+                image.download_file()
+
+        except Exception:
+
+            err = traceback.format_exc()
+            sys.stdout.write(err)
+            _start_date = _start_date + timedelta(year=1)
+
+            continue
 
         _date = _start_date
 
@@ -368,7 +378,7 @@ def souvik_verify(start_date, no_of_years):
             hmi_images, aia_images, vis_images
         ):
 
-            sys.stdout.write('Startng work for Date: {}'.format(_date))
+            sys.stdout.write('Startng work for Date: {}\n'.format(_date))
 
             record = Record.find_by_date(_date)
 
@@ -379,7 +389,7 @@ def souvik_verify(start_date, no_of_years):
                     vis_image
                 )
             else:
-                sys.stdout.write('Data Exists for Date: {}'.format(_date))
+                sys.stdout.write('Data Exists for Date: {}\n'.format(_date))
 
             aia_image.delete_data()
             vis_image.delete_data()
@@ -391,7 +401,7 @@ def souvik_verify(start_date, no_of_years):
 
 
 def run():
-    from_date = datetime.date(year=2011, month=11, day=1)
+    from_date = datetime.date(year=2011, month=1, day=1)
     # to_date = datetime.date(year=2015, month=12, day=17)
     # analyse_images(from_date, to_date)
     souvik_verify(from_date, 8)
