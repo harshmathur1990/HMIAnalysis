@@ -318,14 +318,14 @@ def souvik_verify(start_date, no_of_years):
     vis_images = get_images(
         start_date,
         'hmi.ic_nolimbdark_720s',
-        '{}y@1d'.format(no_of_years),
+        '{}d@1d'.format(no_of_years * 365),
         'continuum'
     )
 
     aia_images = get_images(
         start_date,
         'aia.lev1_uv_24s',
-        '{}y@1d'.format(no_of_years),
+        '{}d@1d'.format(no_of_years * 365),
         'image',
         1600
     )
@@ -333,7 +333,7 @@ def souvik_verify(start_date, no_of_years):
     hmi_images = get_images(
         start_date,
         'hmi.M_720s',
-        '{}y@1d'.format(no_of_years),
+        '{}d@1d'.format(no_of_years * 365),
         'magnetogram'
     )
 
@@ -375,9 +375,10 @@ def souvik_verify(start_date, no_of_years):
 
 
 def run():
-    from_date = datetime.date(year=2015, month=12, day=17)
-    to_date = datetime.date(year=2015, month=12, day=17)
-    analyse_images(from_date, to_date)
+    from_date = datetime.date(year=2011, month=11, day=1)
+    # to_date = datetime.date(year=2015, month=12, day=17)
+    # analyse_images(from_date, to_date)
+    souvik_verify(from_date, 8)
 
 
 if __name__ == '__main__':
