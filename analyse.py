@@ -3,6 +3,7 @@ import sys
 import os
 import datetime
 from datetime import timedelta
+import numpy as np
 # from concurrent.futures import ProcessPoolExecutor
 # from user_pools import NoDaemonPool as Pool
 from chains import CreateCarringtonMap, MaskingMagnetograms, SouvikRework
