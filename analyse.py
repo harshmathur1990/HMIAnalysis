@@ -380,6 +380,10 @@ def souvik_verify(start_date, no_of_years):
             else:
                 sys.stdout.write('Data Exists for Date: {}'.format(_date))
 
+            aia_image.delete_data()
+            vis_image.delete_data()
+            hmi_image.delete_data()
+
             _date = _date + timedelta(days=1)
 
         _start_date = _start_date + timedelta(year=1)
