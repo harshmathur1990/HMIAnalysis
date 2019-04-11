@@ -315,63 +315,74 @@ def analyse_images(start_date, end_date):
 
 
 def souvik_verify(start_date, no_of_years):
-    vis_images = get_images(
-        start_date,
-        'hmi.ic_nolimbdark_720s',
-        '{}d@1d'.format(no_of_years * 365),
-        'continuum'
-    )
 
-    aia_images = get_images(
-        start_date,
-        'aia.lev1_uv_24s',
-        '{}d@1d'.format(no_of_years * 365),
-        'image',
-        1600
-    )
+    _start_date = start_date
 
-    hmi_images = get_images(
-        start_date,
-        'hmi.M_720s',
-        '{}d@1d'.format(no_of_years * 365),
-        'magnetogram'
-    )
+    for index in np.arange(no_of_years):
 
-    all_images = list()
+        sys.stdout.write('Startng work for Year: {}'.format(_start_date))
 
-    all_images.extend(
-        vis_images
-    )
+        vis_images = get_images(
+            _start_date,
+            'hmi.ic_nolimbdark_720s',
+            '365d@1d',
+            'continuum'
+        )
 
-    all_images.extend(
-        aia_images
-    )
+        aia_images = get_images(
+            _start_date,
+            'aia.lev1_uv_24s',
+            '365d@1d',
+            'image',
+            1600
+        )
 
-    all_images.extend(
-        hmi_images
-    )
+        hmi_images = get_images(
+            _start_date,
+            'hmi.M_720s',
+            '365d@1d',
+            'magnetogram'
+        )
 
-    for image in all_images:
-        image.download_file()
+        all_images = list()
 
-    _date = start_date
+        all_images.extend(
+            vis_images
+        )
 
-    for hmi_image, aia_image, vis_image in zip(
-        hmi_images, aia_images, vis_images
-    ):
+        all_images.extend(
+            aia_images
+        )
 
-        record = Record.find_by_date(_date)
+        all_images.extend(
+            hmi_images
+        )
 
-        if not record:
-            do_souvik_work(
-                hmi_image,
-                aia_image,
-                vis_image
-            )
-        else:
-            sys.stdout.write('Data Exists for Date: {}'.format(_date))
+        for image in all_images:
+            image.download_file()
 
-        _date = _date + timedelta(days=1)
+        _date = _start_date
+
+        for hmi_image, aia_image, vis_image in zip(
+            hmi_images, aia_images, vis_images
+        ):
+
+            sys.stdout.write('Startng work for Date: {}'.format(_date))
+
+            record = Record.find_by_date(_date)
+
+            if not record:
+                do_souvik_work(
+                    hmi_image,
+                    aia_image,
+                    vis_image
+                )
+            else:
+                sys.stdout.write('Data Exists for Date: {}'.format(_date))
+
+            _date = _date + timedelta(days=1)
+
+        _start_date = _start_date + timedelta(year=1)
 
 
 def run():
