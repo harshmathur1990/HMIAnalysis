@@ -34,6 +34,10 @@ class File(object):
     def request(self):
         return self._r
 
+    @property
+    def date(self):
+        return self._date
+
     def _get_path(self, directory, suffix=None):
         if not os.path.isdir(
                 directory + '/' + self._date.strftime('%Y.%m.%d')):

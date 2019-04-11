@@ -6,6 +6,12 @@ import sys
 import numpy as np
 # from multiprocessing import Semaphore
 from decor import retry
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+
+
+Base = declarative_base()
+engine = create_engine('sqlite:///hmi.db', echo=True)
 
 
 try:

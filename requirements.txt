@@ -2,3 +2,6 @@ scipy
 sunpy
 scikit-image
 git+https://github.com/harshmathur1990/drms.git@master
+sqlalchemy
+ipython
+ipdb
