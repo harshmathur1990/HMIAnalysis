@@ -397,7 +397,7 @@ class SouvikRework(Chain):
         '''
 
         sys.stdout.write(
-            'Performed all the chains for : {}'.format(
+            'Performed all the chains for : {}\n'.format(
                 file.filename
             )
         )
@@ -628,7 +628,7 @@ class MaskingMagnetograms(Chain):
         '''
 
         sys.stdout.write(
-            'Performed all the chains for : {}'.format(
+            'Performed all the chains for : {}\n'.format(
                 file.filename
             )
         )

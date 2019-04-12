@@ -38,6 +38,10 @@ class File(object):
     def date(self):
         return self._date
 
+    @date.setter
+    def date(self, value):
+        self._date = value
+
     def _get_path(self, directory, suffix=None):
         if not os.path.isdir(
                 directory + '/' + self._date.strftime('%Y.%m.%d')):

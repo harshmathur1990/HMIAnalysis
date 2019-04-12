@@ -380,6 +380,10 @@ def souvik_verify(start_date, no_of_years):
 
             sys.stdout.write('Startng work for Date: {}\n'.format(_date))
 
+            hmi_image.date = _date
+            aia_image.date = _date
+            vis_image.date = _date
+
             record = Record.find_by_date(_date)
 
             if not record:
