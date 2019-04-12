@@ -38,7 +38,7 @@ def do_work_on_images(hmi_image, aia_image, vis_image):
     return previous_operation
 
 
-def do_souvik_work(hmi_image, aia_image, vis_image):
+def do_souvik_work(hmi_image, aia_image, vis_image, date_object):
     sys.stdout.write(
         'Working on Files: {}:{}:{}\n'.format(
             hmi_image.filename,
@@ -50,7 +50,8 @@ def do_souvik_work(hmi_image, aia_image, vis_image):
     hmi_chain = SouvikRework(
         operation_name='souvik',
         aia_file=aia_image,
-        hmi_ic_file=vis_image
+        hmi_ic_file=vis_image,
+        date_object=date_object
     )
 
     previous_operation = hmi_chain.process(hmi_image)
@@ -380,9 +381,9 @@ def souvik_verify(start_date, no_of_years):
 
             sys.stdout.write('Startng work for Date: {}\n'.format(_date))
 
-            hmi_image.date = _date
-            aia_image.date = _date
-            vis_image.date = _date
+            # hmi_image.date = _date
+            # aia_image.date = _date
+            # vis_image.date = _date
 
             record = Record.find_by_date(_date)
 
@@ -390,7 +391,8 @@ def souvik_verify(start_date, no_of_years):
                 do_souvik_work(
                     hmi_image,
                     aia_image,
-                    vis_image
+                    vis_image,
+                    _date
                 )
             else:
                 sys.stdout.write('Data Exists for Date: {}\n'.format(_date))

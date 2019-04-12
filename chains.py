@@ -248,10 +248,11 @@ def function_proxy(func, *args):
 
 class SouvikRework(Chain):
 
-    def __init__(self, operation_name, aia_file, hmi_ic_file):
+    def __init__(self, operation_name, aia_file, hmi_ic_file, date_object):
         super().__init__(operation_name)
         self._aia_file = aia_file
         self._hmi_ic_file = hmi_ic_file
+        self._date_object = date_object
 
     def actual_process(self, file=None, previous_operation_name=None):
 
@@ -458,7 +459,7 @@ class SouvikRework(Chain):
         )
 
         record = Record(
-            date=file.date,
+            date=self._date_object,
             no_of_pixel_sunspot=no_of_sunspot_pixel,
             total_mag_field_sunspot=sunspot_field,
             no_of_pixel_plage=no_of_plage_pixel,
