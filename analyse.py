@@ -403,7 +403,9 @@ def souvik_verify(start_date, no_of_years):
 
             _date = _date + timedelta(days=1)
 
-        _start_date = _start_date + timedelta(year=1)
+        _start_date = _start_date.replace(
+            year=_start_date.year + 1
+        )
 
 
 def run():

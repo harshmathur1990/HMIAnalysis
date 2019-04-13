@@ -29,6 +29,10 @@ class Record(Base):
 
     total_background_field = Column(Float)
 
+    total_pixels = Column(Integer)
+
+    total_magnetic_field = Column(Float)
+
     def save(self):
 
         session = Session()

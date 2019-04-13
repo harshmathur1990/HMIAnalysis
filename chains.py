@@ -434,6 +434,14 @@ class SouvikRework(Chain):
 
         no_of_background_field = len(np.where(total_mask == 0.0)[0])
 
+        total_magnetic_field = np.nansum(hmi_mag_image.data)
+
+        total_mask_copy = total_mask.copy()
+
+        total_mask_copy[total_mask_copy == 0.0] = 1.0
+
+        no_of_pixels_total_field = np.nansum(total_mask_copy)
+
         def get_no_of_pixel_and_field(mask, image):
 
             mask = mask.copy()
@@ -467,7 +475,9 @@ class SouvikRework(Chain):
             no_of_pixel_active=no_of_active_pixel,
             total_mag_field_active=active_field,
             no_of_pixel_background=no_of_background_field,
-            total_background_field=background_field
+            total_background_field=background_field,
+            total_pixels=no_of_pixels_total_field,
+            total_magnetic_field=total_magnetic_field
         )
 
         record.save()
