@@ -17,13 +17,9 @@ class Record(Base):
 
     total_mag_field_sunspot = Column(Float)
 
-    no_of_pixel_plage = Column(Integer)
+    no_of_pixel_plage_and_active = Column(Integer)
 
-    total_mag_field_plage = Column(Float)
-
-    no_of_pixel_active = Column(Integer)
-
-    total_mag_field_active = Column(Float)
+    total_mag_field_plage_active = Column(Float)
 
     no_of_pixel_background = Column(Integer)
 
@@ -50,3 +46,21 @@ class Record(Base):
             .filter(Record.date == date_object)
 
         return record_query.one_or_none()
+
+    @staticmethod
+    def get_all(date_object_lower=None, date_object_upper=None):
+        session = Session()
+
+        record_query = session.query(Record)
+
+        if date_object_lower:
+            record_query = record_query.filter(
+                Record.date >= date_object_lower
+            )
+
+        if date_object_upper:
+            record_query = record_query.filter(
+                Record.date < date_object_upper
+            )
+
+        return record_query.all()

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import numpy as np
 from astropy.io import fits
 import sunpy.io.fits
 import matplotlib.pyplot as plt
@@ -89,7 +90,10 @@ class File(object):
             data,
             header
         )
-        plt.imsave(filename + '.png', data, cmap='gray', format='png')
+        _data = data.copy()
+        _data -= np.nanmin(_data)
+        _data[np.isnan(_data)] = 0.0
+        plt.imsave(filename + '.png', _data, cmap='gray', format='png')
 
     def _delete(self, operation_name, suffix=None):
         path_to_be_deleted = self._get_path(operation_name, suffix=suffix)

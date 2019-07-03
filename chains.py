@@ -117,6 +117,10 @@ class Thresholding(Chain):
         mean = np.nanmean(image)
         std = np.nanstd(image)
 
+        invalid_result = False
+        if np.isnan(mean) or np.isinf(mean) or np.isnan(std) or np.isinf(std):
+            invalid_result = True
+
         threshold = mean + (self._k * std)
 
         result = np.zeros(shape=image.shape)
@@ -133,13 +137,20 @@ class Thresholding(Chain):
         # 1.8 sec per call, 4% of the program
         result = closing(result, square(3))
 
-        return result
+        return result, invalid_result
 
     def actual_process(self, file=None, previous_operation_name=None):
 
         fits_array = file.get_fits_hdu(previous_operation_name)
 
-        image = self._do_thresholding(fits_array.data, fits_array.header)
+        image, invalid_result = self._do_thresholding(
+            fits_array.data, fits_array.header
+        )
+
+        if invalid_result:
+            sys.stdout.write(
+                'Invalid LDR Result for Filename: {}'.format(file.filename)
+            )
 
         if self._post_processor:
             image = self._post_processor(image)
@@ -174,9 +185,13 @@ class LimbDarkeningCorrection(Chain):
             preserve_range=True
         )
 
-        result = np.divide(image, large_median)
+        large_median = set_nan_to_non_sun(
+            large_median,
+            header,
+            factor=self._radius_factor
+        )
 
-        result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
+        result = np.divide(image, large_median)
 
         return result
 
@@ -267,11 +282,11 @@ class SouvikRework(Chain):
             k=1.71,
             op=operator.ge,
             post_processor=do_area_filtering,
-            radius_factor=0.97
+            radius_factor=0.96
         ).set_prev(
             LimbDarkeningCorrection(
                 operation_name='ldr',
-                radius_factor=0.97
+                radius_factor=0.96
             ).set_prev(
                 AIAPrep(
                     operation_name='aiaprep', radius_factor=1.0
@@ -290,13 +305,13 @@ class SouvikRework(Chain):
             op=operator.ge,
             k2=1.71,
             op2=operator.ge,
-            radius_factor=0.97,
+            radius_factor=0.96,
             value_1=1.0,
             value_2=0.0
         ).set_prev(
             LimbDarkeningCorrection(
                 operation_name='ldr',
-                radius_factor=0.97
+                radius_factor=0.96
             ).set_prev(
                 AIAPrep(
                     operation_name='aiaprep', radius_factor=1.0
@@ -313,7 +328,7 @@ class SouvikRework(Chain):
             suffix=None,
             k=-5,
             op=operator.le,
-            radius_factor=1.0
+            radius_factor=0.96
         ).set_prev(
             AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
                 DownloadFiles(operation_name='data')
@@ -322,7 +337,7 @@ class SouvikRework(Chain):
 
         hmi_mag_chain = AIAPrep(
             operation_name='aiaprep',
-            radius_factor=1.0
+            radius_factor=0.96
         ).set_prev(
             DownloadFiles(operation_name='data')
         )
@@ -345,57 +360,6 @@ class SouvikRework(Chain):
         previous_operation_hmi_mag = hmi_mag_chain.process(
             file
         )
-
-        '''
-        future_list = list()
-
-        executor = Pool(4)
-
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    aia_chain_plages.process,
-                    self._aia_file,
-                    'plages'
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    aia_chain_active_networks.process,
-                    self._aia_file,
-                    'active_networks'
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    hmi_ic_chain.process,
-                    self._hmi_ic_file,
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    hmi_mag_chain.process,
-                    file,
-                )
-            )
-        )
-
-        previous_operation_aia_plages = future_list[0].get()
-        previous_operation_active_networks = future_list[1].get()
-        previous_operation_hmi_ic = future_list[2].get()
-        previous_operation_hmi_mag = future_list[3].get()
-
-        '''
 
         sys.stdout.write(
             'Performed all the chains for : {}\n'.format(
@@ -428,6 +392,8 @@ class SouvikRework(Chain):
 
         total_mask[total_mask >= 1.0] = 1.0
 
+        # apply mask is masking the features in the mask and
+        # returning the non masked elements
         masked_image = apply_mask(masked_image, total_mask)
 
         background_field = np.nansum(masked_image)
@@ -454,26 +420,27 @@ class SouvikRework(Chain):
 
             return no_of_pixels, np.nansum(_masked_image)
 
-        no_of_active_pixel, active_field = get_no_of_pixel_and_field(
-            aia_mask_active_networks.data, hmi_mag_image.data
+        mask_active_network_plage = np.add(
+            aia_mask_plages.data,
+            aia_mask_active_networks.data
         )
+
+        a, b = get_no_of_pixel_and_field(
+            mask_active_network_plage, hmi_mag_image.data
+        )
+
+        no_of_pixel_plage_and_active, total_mag_field_plage_active = a, b
 
         no_of_sunspot_pixel, sunspot_field = get_no_of_pixel_and_field(
             hmi_ic_mask.data, hmi_mag_image.data
-        )
-
-        no_of_plage_pixel, plage_field = get_no_of_pixel_and_field(
-            aia_mask_plages.data, hmi_mag_image.data
         )
 
         record = Record(
             date=self._date_object,
             no_of_pixel_sunspot=no_of_sunspot_pixel,
             total_mag_field_sunspot=sunspot_field,
-            no_of_pixel_plage=no_of_plage_pixel,
-            total_mag_field_plage=plage_field,
-            no_of_pixel_active=no_of_active_pixel,
-            total_mag_field_active=active_field,
+            no_of_pixel_plage_and_active=no_of_pixel_plage_and_active,
+            total_mag_field_plage_active=total_mag_field_plage_active,
             no_of_pixel_background=no_of_background_field,
             total_background_field=background_field,
             total_pixels=no_of_pixels_total_field,
@@ -486,207 +453,3 @@ class SouvikRework(Chain):
         self._aia_file.delete('mask', suffix='active_networks')
         self._hmi_ic_file.delete('mask')
         return masked_image, hmi_mag_image.header
-
-
-class MaskingMagnetograms(Chain):
-
-    def __init__(self, operation_name, aia_file, hmi_ic_file):
-        super().__init__(operation_name)
-        self._aia_file = aia_file
-        self._hmi_ic_file = hmi_ic_file
-
-    def actual_process(self, file=None, previous_operation_name=None):
-
-        sys.stdout.write(
-            'Started The Process for MaskingMagnetograms :{}\n'.format(
-                file.filename
-            )
-        )
-        aia_chain_plages = Thresholding(
-            operation_name='mask',
-            suffix='plages',
-            k=1.71,
-            op=operator.ge,
-            post_processor=do_area_filtering,
-            radius_factor=0.97
-        ).set_prev(
-            LimbDarkeningCorrection(
-                operation_name='ldr',
-                radius_factor=0.97
-            ).set_prev(
-                AIAPrep(
-                    operation_name='aiaprep', radius_factor=1.0
-                ).set_prev(
-                    DownloadFiles(
-                        operation_name='data', fname_from_rec=True
-                    )
-                )
-            )
-        )
-
-        aia_chain_active_networks = Thresholding(
-            operation_name='mask',
-            suffix='active_networks',
-            k=1.65,
-            op=operator.ge,
-            k2=1.71,
-            op2=operator.ge,
-            radius_factor=0.97,
-            value_1=1.0,
-            value_2=0.0
-        ).set_prev(
-            LimbDarkeningCorrection(
-                operation_name='ldr',
-                radius_factor=0.97
-            ).set_prev(
-                AIAPrep(
-                    operation_name='aiaprep', radius_factor=1.0
-                ).set_prev(
-                    DownloadFiles(
-                        operation_name='data', fname_from_rec=True
-                    )
-                )
-            )
-        )
-
-        hmi_ic_chain = Thresholding(
-            operation_name='mask',
-            suffix=None,
-            k=-5,
-            op=operator.le,
-            radius_factor=1.0
-        ).set_prev(
-            AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
-                DownloadFiles(operation_name='data')
-            )
-        )
-
-        hmi_mag_chain = AIAPrep(
-            operation_name='aiaprep',
-            radius_factor=1.0
-        ).set_prev(
-            DownloadFiles(operation_name='data')
-        )
-
-        sys.stdout.write(
-            'Created The Chains for MaskingMagnetograms :{}\n'.format(
-                file.filename
-            )
-        )
-
-        previous_operation_aia_plages = aia_chain_plages.process(
-            self._aia_file,
-        )
-        previous_operation_active_networks = aia_chain_active_networks.process(
-            self._aia_file,
-        )
-        previous_operation_hmi_ic = hmi_ic_chain.process(
-            self._hmi_ic_file
-        )
-        previous_operation_hmi_mag = hmi_mag_chain.process(
-            file
-        )
-
-        '''
-        future_list = list()
-
-        executor = Pool(4)
-
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    aia_chain_plages.process,
-                    self._aia_file,
-                    'plages'
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    aia_chain_active_networks.process,
-                    self._aia_file,
-                    'active_networks'
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    hmi_ic_chain.process,
-                    self._hmi_ic_file,
-                )
-            )
-        )
-        future_list.append(
-            executor.apply_async(
-                function_proxy,
-                args=(
-                    hmi_mag_chain.process,
-                    file,
-                )
-            )
-        )
-
-        previous_operation_aia_plages = future_list[0].get()
-        previous_operation_active_networks = future_list[1].get()
-        previous_operation_hmi_ic = future_list[2].get()
-        previous_operation_hmi_mag = future_list[3].get()
-
-        '''
-
-        sys.stdout.write(
-            'Performed all the chains for : {}\n'.format(
-                file.filename
-            )
-        )
-
-        aia_mask_plages = self._aia_file.get_fits_hdu(
-            previous_operation_aia_plages.operation_name,
-            'plages'
-        )
-        aia_mask_active_networks = self._aia_file.get_fits_hdu(
-            previous_operation_active_networks.operation_name,
-            'active_networks'
-        )
-        hmi_ic_mask = self._hmi_ic_file.get_fits_hdu(
-            previous_operation_hmi_ic.operation_name)
-        hmi_mag_image = file.get_fits_hdu(
-            previous_operation_hmi_mag.operation_name)
-
-        masked_image = hmi_mag_image.data.copy()
-
-        total_mask = np.add(
-            np.add(
-                aia_mask_plages.data,
-                aia_mask_active_networks.data
-            ),
-            hmi_ic_mask.data
-        )
-
-        total_mask[total_mask >= 1.0] = 1.0
-
-        masked_image = apply_mask(masked_image, total_mask)
-
-        self._aia_file.delete('mask', suffix='plages')
-        self._aia_file.delete('mask', suffix='active_networks')
-        self._hmi_ic_file.delete('mask')
-        return masked_image, hmi_mag_image.header
-
-
-class CreateCarringtonMap(Chain):
-
-    def __init__(self, operation_name, aia_file, hmi_ic_file):
-        super().__init__(operation_name)
-        self._aia_file = aia_file
-        self._hmi_ic_file = hmi_ic_file
-
-    def actual_process(self, file=None, previous_operation_name=None):
-        # The file is HMI Magnetogram masked image.
-        # If the file exists, use it and extract the map information,
-        # else create the file using the chaining.
-        fits_array = file.get_fits_hdu(previous_operation_name)
-        return fits_array.data, fits_array.header

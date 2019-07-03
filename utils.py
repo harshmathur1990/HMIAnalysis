@@ -211,4 +211,6 @@ def set_nan_to_non_sun(image, header, factor=1.0):
 
     im[~mask] = np.nan
 
+    im[np.isinf(im)] = np.nan
+
     return im
