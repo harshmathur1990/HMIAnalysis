@@ -100,7 +100,8 @@ class Thresholding(Chain):
         post_processor=None,
         radius_factor=None,
         value_1=1.0,
-        value_2=0.0
+        value_2=0.0,
+        do_closing=False
     ):
         super().__init__(operation_name, suffix)
         self._k = k
@@ -110,7 +111,12 @@ class Thresholding(Chain):
         self._post_processor = post_processor
         self._radius_factor = radius_factor
         self._value_1 = value_1
-        self._value_2 = value_2
+        self._value_2 = value_2,
+        self._do_closing = do_closing
+
+    @property
+    def do_closing(self):
+        return self._do_closing
 
     def _do_thresholding(self, image, header):
 
@@ -135,7 +141,8 @@ class Thresholding(Chain):
         result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
         # 1.8 sec per call, 4% of the program
-        result = closing(result, square(3))
+        if self.do_closing:
+            result = closing(result, square(3))
 
         return result, invalid_result
 
@@ -282,7 +289,8 @@ class SouvikRework(Chain):
             k=1.71,
             op=operator.ge,
             post_processor=do_area_filtering,
-            radius_factor=0.96
+            radius_factor=0.96,
+            do_closing=True
         ).set_prev(
             LimbDarkeningCorrection(
                 operation_name='ldr',
@@ -307,7 +315,8 @@ class SouvikRework(Chain):
             op2=operator.ge,
             radius_factor=0.96,
             value_1=1.0,
-            value_2=0.0
+            value_2=0.0,
+            do_closing=False
         ).set_prev(
             LimbDarkeningCorrection(
                 operation_name='ldr',
@@ -328,7 +337,8 @@ class SouvikRework(Chain):
             suffix=None,
             k=-5,
             op=operator.le,
-            radius_factor=0.96
+            radius_factor=0.96,
+            do_closing=True
         ).set_prev(
             AIAPrep(operation_name='aiaprep', radius_factor=1.0).set_prev(
                 DownloadFiles(operation_name='data')
