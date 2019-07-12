@@ -138,11 +138,11 @@ class Thresholding(Chain):
 
             result[self._op2(image, threshold_2)] = self._value_2
 
-        result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
-
         # 1.8 sec per call, 4% of the program
         if self.do_closing:
             result = closing(result, square(3))
+
+        result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
 
         return result, invalid_result
 

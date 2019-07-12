@@ -6,12 +6,13 @@ import sys
 import numpy as np
 # from multiprocessing import Semaphore
 from decor import retry
+from skimage.draw import circle
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 
 
 Base = declarative_base()
-engine = create_engine('sqlite:///hmi.db', echo=True)
+engine = create_engine('sqlite:///test_hmi.db', echo=True)
 
 
 try:
@@ -134,61 +135,16 @@ def apply_mask(image, mask):
     :return:
     '''
 
-    im = image.copy()
-    im[mask == 1.0] = 0.0
+    ulta_mask = -1 * (mask - 1)
+
+    ulta_mask[ulta_mask != 1.0] = np.nan
+
+    im = np.multiply(
+        ulta_mask,
+        image
+    )
 
     return im
-
-
-def running_mean(
-    images_list,
-    previous_operation,
-    operation_name='running_mean',
-    window_size=1,
-    suffix=None
-):
-    '''
-    :param images_list:
-    :param window_size: running mean size
-    :return:
-    '''
-    start = 0
-    end = window_size
-
-    resultant_images = list()
-
-    while end <= len(images_list):
-
-        if images_list[start].is_exist_in_directory(
-            operation_name, suffix=suffix
-        ):
-            resultant_images.append(images_list[start])
-            start += window_size
-            end += window_size
-            continue
-
-        image = np.zeros(shape=(4096, 4096))
-
-        for i in range(start, end):
-            curr_image = images_list[i].get_fits_hdu(
-                previous_operation.operation_name)
-            curr_image.data[np.isnan(curr_image.data)] = 0.0
-
-            image = np.add(image, curr_image.data)
-
-        image = np.divide(image, end - start)
-
-        image = set_nan_to_non_sun(image, curr_image.header, factor=0.97)
-
-        images_list[start].save(operation_name, image,
-                                curr_image.header, suffix=suffix)
-
-        resultant_images.append(images_list[start])
-
-        start += window_size
-        end += window_size
-
-    return resultant_images
 
 
 def set_nan_to_non_sun(image, header, factor=1.0):
@@ -201,16 +157,23 @@ def set_nan_to_non_sun(image, header, factor=1.0):
 
     center_y = header['CRPIX2']
 
-    Y, X = np.ogrid[:image.shape[0], :image.shape[1]]
+    sys.stdout.write(
+        'Center X: {}, Center Y: {} Radius: {}\n'.format(
+            center_x, center_y, radius
+        )
+    )
 
-    dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
+    rr, cc = circle(center_x, center_y, radius * factor)
 
-    mask = dist_from_center <= (factor * radius)
+    mask = np.zeros_like(image)
 
-    im = image.copy()
+    mask[rr, cc] = 1.0
 
-    im[~mask] = np.nan
+    mask[mask == 0.0] = np.nan
 
-    im[np.isinf(im)] = np.nan
+    im = np.multiply(
+        mask,
+        image
+    )
 
     return im
