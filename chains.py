@@ -435,6 +435,8 @@ class SouvikRework(Chain):
             aia_mask_active_networks.data
         )
 
+        mask_active_network_plage[mask_active_network_plage >= 1.0] = 1.0
+
         a, b = get_no_of_pixel_and_field(
             mask_active_network_plage, hmi_mag_image.data
         )
