@@ -93,6 +93,9 @@ class File(object):
         _data = data.copy()
         _data -= np.nanmin(_data)
         _data[np.isnan(_data)] = 0.0
+        _data[np.isinf(_data)] = 0.0
+        _data = _data / np.nanmax(_data)
+        _data = np.uint8(_data * 255)
         plt.imsave(filename + '.png', _data, cmap='gray', format='png')
 
     def _delete(self, operation_name, suffix=None):

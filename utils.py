@@ -4,11 +4,15 @@ import traceback
 import drms
 import sys
 import numpy as np
-# from multiprocessing import Semaphore
+import skimage.transform
+import scipy.signal
+import sunpy.map
+import sunpy.instr.aia
 from decor import retry
 from skimage.draw import circle
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
+# from multiprocessing import Semaphore
 
 
 Base = declarative_base()
@@ -137,7 +141,7 @@ def apply_mask(image, mask):
 
     ulta_mask = -1 * (mask - 1)
 
-    ulta_mask[ulta_mask != 1.0] = np.nan
+    ulta_mask[ulta_mask != 1.0] = 0.0
 
     im = np.multiply(
         ulta_mask,
@@ -169,7 +173,7 @@ def set_nan_to_non_sun(image, header, factor=1.0):
 
     mask[rr, cc] = 1.0
 
-    mask[mask == 0.0] = np.nan
+    # mask[mask == 0.0] = 0.0
 
     im = np.multiply(
         mask,
@@ -177,3 +181,87 @@ def set_nan_to_non_sun(image, header, factor=1.0):
     )
 
     return im
+
+
+def do_thresholding(
+    image, header, k, op, value_1, radius_factor=0.96,
+    k2=None, op2=None, value_2=None
+):
+
+    mean = np.nanmean(image)
+    std = np.nanstd(image)
+
+    invalid_result = False
+    if np.isnan(mean) or np.isinf(mean) or np.isnan(std) or np.isinf(std):
+        invalid_result = True
+
+    threshold = mean + (k * std)
+
+    result = np.zeros(shape=image.shape)
+
+    result[op(image, threshold)] = value_1
+
+    if k2 and op2:
+        threshold_2 = mean + (k2 * std)
+
+        result[op2(image, threshold_2)] = value_2
+
+    result = set_nan_to_non_sun(result, header, factor=radius_factor)
+
+    return result, invalid_result
+
+
+def do_limb_darkening_correction(
+    image, header, radius_factor=1.0, kernel_size=105
+):
+
+        small_image = skimage.transform.resize(
+            image,
+            output_shape=(512, 512),
+            order=3,
+            preserve_range=True
+        )
+
+        small_image[np.isnan(small_image)] = 0.0
+
+        # Slow, 20 secs per call, 30% time of the program
+        small_median = scipy.signal.medfilt2d(small_image, kernel_size)
+
+        large_median = skimage.transform.resize(
+            small_median,
+            output_shape=image.shape,
+            order=3,
+            preserve_range=True
+        )
+
+        large_median = set_nan_to_non_sun(
+            large_median,
+            header,
+            factor=radius_factor
+        )
+
+        result = np.divide(image, large_median)
+
+        result[np.isinf(result)] = 0.0
+
+        result[np.isnan(result)] = 0.0
+
+        return result
+
+
+def do_aiaprep(data, header, radius_factor=1.0):
+        header['HGLN_OBS'] = 0
+
+        aiamap = sunpy.map.Map(
+            data,
+            header
+        )
+
+        # Slow, 7 secs per call, 36% of the program
+        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)
+
+        result = set_nan_to_non_sun(
+            aiamap_afterprep.data,
+            aiamap_afterprep.meta, factor=radius_factor)
+
+        return result, aiamap_afterprep.meta

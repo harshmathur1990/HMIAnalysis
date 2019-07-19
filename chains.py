@@ -5,16 +5,12 @@ from abc import abstractmethod, ABC
 import numpy as np
 import sys
 import operator
-import skimage.transform
-import scipy.signal
-import skimage.draw
-import skimage.filters
-import sunpy.map
-import sunpy.instr.aia
+from skimage.draw import circle
 from skimage.measure import label, regionprops
 from skimage.morphology import closing, square
 from model import Record
-from utils import apply_mask, set_nan_to_non_sun
+from utils import apply_mask, do_thresholding, \
+    do_limb_darkening_correction, do_aiaprep
 
 
 class Chain(ABC):
@@ -120,31 +116,18 @@ class Thresholding(Chain):
 
     def _do_thresholding(self, image, header):
 
-        mean = np.nanmean(image)
-        std = np.nanstd(image)
-
-        invalid_result = False
-        if np.isnan(mean) or np.isinf(mean) or np.isnan(std) or np.isinf(std):
-            invalid_result = True
-
-        threshold = mean + (self._k * std)
-
-        result = np.zeros(shape=image.shape)
-
-        result[self._op(image, threshold)] = self._value_1
-
-        if self._k2 and self._op2:
-            threshold_2 = mean + (self._k2 + std)
-
-            result[self._op2(image, threshold_2)] = self._value_2
-
-        # 1.8 sec per call, 4% of the program
-        if self.do_closing:
-            result = closing(result, square(3))
-
-        result = set_nan_to_non_sun(result, header, factor=self._radius_factor)
-
-        return result, invalid_result
+        return do_thresholding(
+            image=image,
+            header=header,
+            k=self._k,
+            op=self._op,
+            value_1=self._value_1,
+            radius_factor=self._radius_factor,
+            k2=self._k2,
+            op2=self._op2,
+            value_2=self._value_2,
+            # do_closing=self.do_closing
+        )
 
     def actual_process(self, file=None, previous_operation_name=None):
 
@@ -162,6 +145,10 @@ class Thresholding(Chain):
         if self._post_processor:
             image = self._post_processor(image)
 
+        # 1.8 sec per call, 4% of the program
+        if self.do_closing:
+            image = closing(image, square(3))
+
         return image, fits_array.header
 
 
@@ -173,34 +160,9 @@ class LimbDarkeningCorrection(Chain):
 
     def _do_limb_darkening_correction(self, image, header):
 
-        small_image = skimage.transform.resize(
-            image,
-            output_shape=(512, 512),
-            order=3,
-            preserve_range=True
+        return do_limb_darkening_correction(
+            image, header, radius_factor=self._radius_factor
         )
-
-        small_image[np.isnan(small_image)] = 0.0
-
-        # Slow, 20 secs per call, 30% time of the program
-        small_median = scipy.signal.medfilt2d(small_image, 105)
-
-        large_median = skimage.transform.resize(
-            small_median,
-            output_shape=image.shape,
-            order=3,
-            preserve_range=True
-        )
-
-        large_median = set_nan_to_non_sun(
-            large_median,
-            header,
-            factor=self._radius_factor
-        )
-
-        result = np.divide(image, large_median)
-
-        return result
 
     def actual_process(self, file=None, previous_operation_name=None):
         fits_array = file.get_fits_hdu(previous_operation_name)
@@ -218,21 +180,12 @@ class AIAPrep(Chain):
         self._radius_factor = radius_factor
 
     def _do_aiaprep(self, data, header):
-        header['HGLN_OBS'] = 0
 
-        aiamap = sunpy.map.Map(
+        return do_aiaprep(
             data,
-            header
+            header,
+            radius_factor=self._radius_factor
         )
-
-        # Slow, 7 secs per call, 36% of the program
-        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)
-
-        result = set_nan_to_non_sun(
-            aiamap_afterprep.data,
-            aiamap_afterprep.meta, factor=self._radius_factor)
-
-        return result, aiamap_afterprep.meta
 
     def actual_process(self, file=None, previous_operation_name=None):
         fits_array = file.get_fits_hdu(previous_operation_name)
@@ -335,7 +288,7 @@ class SouvikRework(Chain):
         hmi_ic_chain = Thresholding(
             operation_name='mask',
             suffix=None,
-            k=-5,
+            k=0.4,
             op=operator.le,
             radius_factor=0.96,
             do_closing=True
@@ -402,21 +355,21 @@ class SouvikRework(Chain):
 
         total_mask[total_mask >= 1.0] = 1.0
 
+        no_of_pixels_total_field = len(
+            circle(2048.5, 2048.5, hmi_mag_image.header['R_SUN'] * 0.96)[0]
+        )
+
         # apply mask is masking the features in the mask and
         # returning the non masked elements
         masked_image = apply_mask(masked_image, total_mask)
 
         background_field = np.nansum(masked_image)
 
-        no_of_background_field = len(np.where(total_mask == 0.0)[0])
+        no_of_background_field = no_of_pixels_total_field - np.nansum(
+            total_mask
+        )
 
         total_magnetic_field = np.nansum(hmi_mag_image.data)
-
-        total_mask_copy = total_mask.copy()
-
-        total_mask_copy[total_mask_copy == 0.0] = 1.0
-
-        no_of_pixels_total_field = np.nansum(total_mask_copy)
 
         def get_no_of_pixel_and_field(mask, image):
 
