@@ -100,7 +100,8 @@ class File(object):
 
     def _delete(self, operation_name, suffix=None):
         path_to_be_deleted = self._get_path(operation_name, suffix=suffix)
-        os.remove(path_to_be_deleted)
+        if not int(os.getenv('DEBUG')):
+            os.remove(path_to_be_deleted)
 
     def delete(self, operation_name, suffix=None):
         if operation_name and self.filename and operation_name != 'data':

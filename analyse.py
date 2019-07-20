@@ -10,6 +10,7 @@ import traceback
 from chains import SouvikRework
 from utils import get_images, Base, engine
 from model import Record
+from dotenv import load_dotenv
 
 
 def do_souvik_work(hmi_image, aia_image, vis_image, date_object):
@@ -129,6 +130,7 @@ def souvik_verify(start_date, no_of_years, days=365):
 
 
 def run():
+    load_dotenv(verbose=True)
     from_date = datetime.date(
         year=int(sys.argv[1]),
         month=int(sys.argv[2]),
