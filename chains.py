@@ -10,19 +10,28 @@ from skimage.measure import label, regionprops
 from skimage.morphology import closing, square
 from model import Record
 from utils import apply_mask, do_thresholding, \
-    do_limb_darkening_correction, do_aiaprep
+    do_limb_darkening_correction, do_aiaprep, do_align, set_nan_to_non_sun
 
 
 class Chain(ABC):
 
-    def __init__(self, operation_name, suffix=None):
+    def __init__(self, operation_name, suffix=None, counter=1):
         self._operation_name = operation_name
         self._suffix = suffix
         self._prev = None
+        self._counter = counter
 
     @property
     def operation_name(self):
         return self._operation_name
+
+    @property
+    def counter(self):
+        return self._counter
+
+    @counter.setter
+    def counter(self, counter):
+        self._counter = counter
 
     def set_prev(self, chain):
         self._prev = chain
@@ -68,7 +77,10 @@ class Chain(ABC):
                     suffix=self._suffix
                 )
 
-                file.delete(previous_operation_name)
+                self.counter -= 1
+
+                if self.counter == 0:
+                    file.delete(previous_operation_name)
         else:
             sys.stdout.write(
                 'Operation: {}, File: {} reusing result\n'.format(
@@ -97,9 +109,10 @@ class Thresholding(Chain):
         radius_factor=None,
         value_1=1.0,
         value_2=0.0,
-        do_closing=False
+        do_closing=False,
+        counter=1
     ):
-        super().__init__(operation_name, suffix)
+        super().__init__(operation_name, suffix, counter)
         self._k = k
         self._op = op
         self._k2 = k2
@@ -154,8 +167,8 @@ class Thresholding(Chain):
 
 class LimbDarkeningCorrection(Chain):
 
-    def __init__(self, operation_name, radius_factor=None):
-        super().__init__(operation_name)
+    def __init__(self, operation_name, radius_factor=None, counter=1):
+        super().__init__(operation_name, counter=counter)
         self._radius_factor = radius_factor
 
     def _do_limb_darkening_correction(self, image, header):
@@ -175,8 +188,8 @@ class LimbDarkeningCorrection(Chain):
 
 class AIAPrep(Chain):
 
-    def __init__(self, operation_name, radius_factor=None):
-        super().__init__(operation_name)
+    def __init__(self, operation_name, radius_factor=None, counter=1):
+        super().__init__(operation_name, counter=counter)
         self._radius_factor = radius_factor
 
     def _do_aiaprep(self, data, header):
@@ -221,6 +234,50 @@ def function_proxy(func, *args):
     return func(*args)
 
 
+class AlignAfterAIAPrep(Chain):
+
+    def __init__(
+        self,
+        operation_name,
+        hmi_file,
+        radius_factor=None,
+        counter=1
+    ):
+        super().__init__(operation_name, counter=counter)
+        self._radius_factor = radius_factor
+        self._hmi_file = hmi_file
+
+    def _do_align(self, aia_data, aia_header):
+
+        return do_align(
+            self._hmi_file,
+            aia_data,
+            aia_header,
+            radius_factor=self._radius_factor
+        )
+
+    def actual_process(self, file=None, previous_operation_name=None):
+        fits_array = file.get_fits_hdu(previous_operation_name)
+
+        return self._do_align(fits_array.data, fits_array.header)
+
+
+class CropImage(Chain):
+
+    def __init__(self, operation_name, radius_factor):
+        super().__init__(operation_name)
+        self._radius_factor = radius_factor
+
+    def actual_process(self, file=None, previous_operation_name=None):
+        fits_array = file.get_fits_hdu(previous_operation_name)
+
+        return set_nan_to_non_sun(
+            fits_array.data,
+            fits_array.header,
+            factor=self._radius_factor
+        ), fits_array.header
+
+
 class SouvikRework(Chain):
 
     def __init__(self, operation_name, aia_file, hmi_ic_file, date_object):
@@ -236,6 +293,43 @@ class SouvikRework(Chain):
                 file.filename
             )
         )
+
+        hmi_mag_chain = AIAPrep(
+            operation_name='aiaprep',
+            radius_factor=1.0
+        ).set_prev(
+            DownloadFiles(operation_name='data')
+        )
+
+        previous_operation_hmi_mag = hmi_mag_chain.process(
+            file
+        )
+
+        aia_prep_chain = AIAPrep(
+            operation_name='aiaprep', radius_factor=1.0
+        ).set_prev(
+            DownloadFiles(
+                operation_name='data', fname_from_rec=True
+            )
+        )
+
+        aia_align_chain = AlignAfterAIAPrep(
+            'aligned_data',
+            file,
+            radius_factor=1.0,
+            counter=2
+        ).set_prev(
+            aia_prep_chain
+        )
+
+        ldr_chain_aia = LimbDarkeningCorrection(
+            operation_name='ldr',
+            radius_factor=0.96,
+            counter=2
+        ).set_prev(
+            aia_align_chain
+        )
+
         aia_chain_plages = Thresholding(
             operation_name='mask',
             suffix='plages',
@@ -245,18 +339,7 @@ class SouvikRework(Chain):
             radius_factor=0.96,
             do_closing=True
         ).set_prev(
-            LimbDarkeningCorrection(
-                operation_name='ldr',
-                radius_factor=0.96
-            ).set_prev(
-                AIAPrep(
-                    operation_name='aiaprep', radius_factor=1.0
-                ).set_prev(
-                    DownloadFiles(
-                        operation_name='data', fname_from_rec=True
-                    )
-                )
-            )
+            ldr_chain_aia
         )
 
         aia_chain_active_networks = Thresholding(
@@ -269,20 +352,9 @@ class SouvikRework(Chain):
             radius_factor=0.96,
             value_1=1.0,
             value_2=0.0,
-            do_closing=False
+            do_closing=False,
         ).set_prev(
-            LimbDarkeningCorrection(
-                operation_name='ldr',
-                radius_factor=0.96
-            ).set_prev(
-                AIAPrep(
-                    operation_name='aiaprep', radius_factor=1.0
-                ).set_prev(
-                    DownloadFiles(
-                        operation_name='data', fname_from_rec=True
-                    )
-                )
-            )
+            ldr_chain_aia
         )
 
         hmi_ic_chain = Thresholding(
@@ -298,11 +370,11 @@ class SouvikRework(Chain):
             )
         )
 
-        hmi_mag_chain = AIAPrep(
-            operation_name='aiaprep',
+        hmi_crop_task = CropImage(
+            operation_name='crop_hmi_afterprep',
             radius_factor=0.96
         ).set_prev(
-            DownloadFiles(operation_name='data')
+            hmi_mag_chain
         )
 
         sys.stdout.write(
@@ -320,7 +392,8 @@ class SouvikRework(Chain):
         previous_operation_hmi_ic = hmi_ic_chain.process(
             self._hmi_ic_file
         )
-        previous_operation_hmi_mag = hmi_mag_chain.process(
+
+        previous_operation_hmi_mag = hmi_crop_task.process(
             file
         )
 
@@ -340,6 +413,7 @@ class SouvikRework(Chain):
         )
         hmi_ic_mask = self._hmi_ic_file.get_fits_hdu(
             previous_operation_hmi_ic.operation_name)
+
         hmi_mag_image = file.get_fits_hdu(
             previous_operation_hmi_mag.operation_name)
 

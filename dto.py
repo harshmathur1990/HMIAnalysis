@@ -73,9 +73,15 @@ class File(object):
                 break
 
         if directory == 'data':
+            _data = rv_fits_hdu.data.copy()
+            _data -= np.nanmin(_data)
+            _data[np.isnan(_data)] = 0.0
+            _data[np.isinf(_data)] = 0.0
+            _data = _data / np.nanmax(_data)
+            _data = np.uint8(_data * 255)
             plt.imsave(
                 path + '.png',
-                rv_fits_hdu.data,
+                _data,
                 cmap='gray',
                 format='png'
             )
@@ -100,7 +106,7 @@ class File(object):
 
     def _delete(self, operation_name, suffix=None):
         path_to_be_deleted = self._get_path(operation_name, suffix=suffix)
-        if not int(os.getenv('DEBUG')):
+        if not int(os.getenv('DEBUG') or 0):
             os.remove(path_to_be_deleted)
 
     def delete(self, operation_name, suffix=None):

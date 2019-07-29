@@ -12,6 +12,7 @@ from decor import retry
 from skimage.draw import circle
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
+import sunpy.physics.differential_rotation
 # from multiprocessing import Semaphore
 
 
@@ -215,53 +216,98 @@ def do_limb_darkening_correction(
     image, header, radius_factor=1.0, kernel_size=105
 ):
 
-        small_image = skimage.transform.resize(
-            image,
-            output_shape=(512, 512),
-            order=3,
-            preserve_range=True
-        )
+    small_image = skimage.transform.resize(
+        image,
+        output_shape=(512, 512),
+        order=3,
+        preserve_range=True
+    )
 
-        small_image[np.isnan(small_image)] = 0.0
+    small_image[np.isnan(small_image)] = 0.0
 
-        # Slow, 20 secs per call, 30% time of the program
-        small_median = scipy.signal.medfilt2d(small_image, kernel_size)
+    # Slow, 20 secs per call, 30% time of the program
+    small_median = scipy.signal.medfilt2d(small_image, kernel_size)
 
-        large_median = skimage.transform.resize(
-            small_median,
-            output_shape=image.shape,
-            order=3,
-            preserve_range=True
-        )
+    large_median = skimage.transform.resize(
+        small_median,
+        output_shape=image.shape,
+        order=3,
+        preserve_range=True
+    )
 
-        large_median = set_nan_to_non_sun(
-            large_median,
-            header,
-            factor=radius_factor
-        )
+    large_median = set_nan_to_non_sun(
+        large_median,
+        header,
+        factor=radius_factor
+    )
 
-        result = np.divide(image, large_median)
+    result = np.divide(image, large_median)
 
-        result[np.isinf(result)] = 0.0
+    result[np.isinf(result)] = 0.0
 
-        result[np.isnan(result)] = 0.0
+    result[np.isnan(result)] = 0.0
 
-        return result
+    return result
 
 
 def do_aiaprep(data, header, radius_factor=1.0):
-        header['HGLN_OBS'] = 0
+    header['HGLN_OBS'] = 0
 
-        aiamap = sunpy.map.Map(
-            data,
-            header
-        )
+    aiamap = sunpy.map.Map(
+        data,
+        header
+    )
 
-        # Slow, 7 secs per call, 36% of the program
-        aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)
+    # Slow, 7 secs per call, 36% of the program
+    aiamap_afterprep = sunpy.instr.aia.aiaprep(aiamap=aiamap)
 
-        result = set_nan_to_non_sun(
-            aiamap_afterprep.data,
-            aiamap_afterprep.meta, factor=radius_factor)
+    result = set_nan_to_non_sun(
+        aiamap_afterprep.data,
+        aiamap_afterprep.meta, factor=radius_factor)
 
-        return result, aiamap_afterprep.meta
+    return result, aiamap_afterprep.meta
+
+
+def do_align(
+    hmi_file,
+    aia_data,
+    aia_header,
+    radius_factor=1.0
+):
+
+    hmi_prep_hdu = hmi_file.get_fits_hdu(
+        'aiaprep',
+    )
+
+    hmiprep_map = sunpy.map.Map(hmi_prep_hdu.data, hmi_prep_hdu.header)
+
+    aia_map = sunpy.map.Map(aia_data, aia_header)
+
+    aia_map_rotated = sunpy.physics.differential_rotation.differential_rotate(
+        aia_map,
+        observer=hmiprep_map.coordinate_frame.observer
+    )
+
+    result = set_nan_to_non_sun(
+        aia_map_rotated.data,
+        aia_map_rotated.meta,
+        factor=radius_factor
+    )
+
+    return result, aia_map_rotated.meta
+
+
+def initialize():
+    directory_names = [
+        'data',
+        'aiaprep',
+        'crop_hmi_afterprep',
+        'aligned_data',
+        'ldr',
+        'mask',
+        'souvik'
+    ]
+
+    for directory in directory_names:
+        if not os.path.isdir(directory):
+            os.mkdir(directory)

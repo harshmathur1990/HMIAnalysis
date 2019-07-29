@@ -11,6 +11,7 @@ from chains import SouvikRework
 from utils import get_images, Base, engine
 from model import Record
 from dotenv import load_dotenv
+from utils import initialize
 
 
 def do_souvik_work(hmi_image, aia_image, vis_image, date_object):
@@ -144,4 +145,5 @@ def run():
 if __name__ == '__main__':
     if not os.path.exists('hmi.db'):
         Base.metadata.create_all(engine)
+    initialize()
     run()
