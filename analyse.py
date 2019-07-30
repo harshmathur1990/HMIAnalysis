@@ -123,7 +123,7 @@ def souvik_verify(start_date, no_of_years, days=365):
             aia_image.delete('mask', suffix='plages')
             aia_image.delete('mask', suffix='active_networks')
             vis_image.delete('aiaprep')
-            vis_image.delete('crop_hmi_after_prep')
+            vis_image.delete('crop_hmi_afterprep')
             vis_image.delete('mask')
             hmi_image.delete('aiaprep')
             hmi_image.delete('souvik')
