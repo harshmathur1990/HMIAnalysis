@@ -31,8 +31,6 @@ def do_souvik_work(hmi_image, aia_image, vis_image, date_object):
     )
 
     previous_operation = hmi_chain.process(hmi_image)
-    hmi_image.delete('aiaprep')
-    hmi_image.delete('souvik')
 
     return previous_operation
 
@@ -119,6 +117,16 @@ def souvik_verify(start_date, no_of_years, days=365):
             else:
                 sys.stdout.write('Data Exists for Date: {}\n'.format(_date))
 
+            aia_image.delete('aiaprep')
+            aia_image.delete('aligned_data')
+            aia_image.delete('ldr')
+            aia_image.delete('mask', suffix='plages')
+            aia_image.delete('mask', suffix='active_networks')
+            vis_image.delete('aiaprep')
+            vis_image.delete('crop_hmi_after_prep')
+            vis_image.delete('mask')
+            hmi_image.delete('aiaprep')
+            hmi_image.delete('souvik')
             aia_image.delete_data()
             vis_image.delete_data()
             hmi_image.delete_data()

@@ -150,3 +150,17 @@ class File(object):
             sys.stdout.write('{} exists, skipping...\n'.format(self.filename))
 
         return self
+
+
+class PreviousOperation(object):
+
+    def __init__(self, file, previous_op, suffix):
+        self._file = file
+        self._previous_op = previous_op
+        self._suffix = suffix
+
+    def get_fits_hdu(self):
+        return self._file.get_fits_hdu(
+            directory=self._previous_op,
+            suffix=self._suffix
+        )

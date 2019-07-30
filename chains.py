@@ -11,27 +11,19 @@ from skimage.morphology import closing, square
 from model import Record
 from utils import apply_mask, do_thresholding, \
     do_limb_darkening_correction, do_aiaprep, do_align, set_nan_to_non_sun
+from dto import PreviousOperation
 
 
 class Chain(ABC):
 
-    def __init__(self, operation_name, suffix=None, counter=1):
+    def __init__(self, operation_name, suffix=None):
         self._operation_name = operation_name
         self._suffix = suffix
         self._prev = None
-        self._counter = counter
 
     @property
     def operation_name(self):
         return self._operation_name
-
-    @property
-    def counter(self):
-        return self._counter
-
-    @counter.setter
-    def counter(self, counter):
-        self._counter = counter
 
     def set_prev(self, chain):
         self._prev = chain
@@ -77,10 +69,6 @@ class Chain(ABC):
                     suffix=self._suffix
                 )
 
-                self.counter -= 1
-
-                if self.counter == 0:
-                    file.delete(previous_operation_name)
         else:
             sys.stdout.write(
                 'Operation: {}, File: {} reusing result\n'.format(
@@ -110,9 +98,9 @@ class Thresholding(Chain):
         value_1=1.0,
         value_2=0.0,
         do_closing=False,
-        counter=1
+        exclude_mask_file=None
     ):
-        super().__init__(operation_name, suffix, counter)
+        super().__init__(operation_name, suffix)
         self._k = k
         self._op = op
         self._k2 = k2
@@ -122,10 +110,15 @@ class Thresholding(Chain):
         self._value_1 = value_1
         self._value_2 = value_2,
         self._do_closing = do_closing
+        self._exclude_mask_file = exclude_mask_file
 
     @property
     def do_closing(self):
         return self._do_closing
+
+    @property
+    def exclude_mask_file(self):
+        return self._exclude_mask_file
 
     def _do_thresholding(self, image, header):
 
@@ -138,8 +131,7 @@ class Thresholding(Chain):
             radius_factor=self._radius_factor,
             k2=self._k2,
             op2=self._op2,
-            value_2=self._value_2,
-            # do_closing=self.do_closing
+            value_2=self._value_2
         )
 
     def actual_process(self, file=None, previous_operation_name=None):
@@ -147,7 +139,8 @@ class Thresholding(Chain):
         fits_array = file.get_fits_hdu(previous_operation_name)
 
         image, invalid_result = self._do_thresholding(
-            fits_array.data, fits_array.header
+            fits_array.data,
+            fits_array.header
         )
 
         if invalid_result:
@@ -162,13 +155,20 @@ class Thresholding(Chain):
         if self.do_closing:
             image = closing(image, square(3))
 
+        if self.exclude_mask_file is not None:
+            for a_exclude_file in self.exclude_mask_file:
+                exclude_mask_hdu = a_exclude_file.get_fits_hdu()
+                exclude_mask = exclude_mask_hdu.data
+                rr, cc = np.where(exclude_mask == 1.0)
+                image[rr, cc] = 0.0
+
         return image, fits_array.header
 
 
 class LimbDarkeningCorrection(Chain):
 
-    def __init__(self, operation_name, radius_factor=None, counter=1):
-        super().__init__(operation_name, counter=counter)
+    def __init__(self, operation_name, radius_factor=None):
+        super().__init__(operation_name)
         self._radius_factor = radius_factor
 
     def _do_limb_darkening_correction(self, image, header):
@@ -188,8 +188,8 @@ class LimbDarkeningCorrection(Chain):
 
 class AIAPrep(Chain):
 
-    def __init__(self, operation_name, radius_factor=None, counter=1):
-        super().__init__(operation_name, counter=counter)
+    def __init__(self, operation_name, radius_factor=None):
+        super().__init__(operation_name)
         self._radius_factor = radius_factor
 
     def _do_aiaprep(self, data, header):
@@ -230,10 +230,6 @@ def do_area_filtering(mask):
     return mask
 
 
-def function_proxy(func, *args):
-    return func(*args)
-
-
 class AlignAfterAIAPrep(Chain):
 
     def __init__(
@@ -241,9 +237,8 @@ class AlignAfterAIAPrep(Chain):
         operation_name,
         hmi_file,
         radius_factor=None,
-        counter=1
     ):
-        super().__init__(operation_name, counter=counter)
+        super().__init__(operation_name)
         self._radius_factor = radius_factor
         self._hmi_file = hmi_file
 
@@ -294,69 +289,6 @@ class SouvikRework(Chain):
             )
         )
 
-        hmi_mag_chain = AIAPrep(
-            operation_name='aiaprep',
-            radius_factor=1.0
-        ).set_prev(
-            DownloadFiles(operation_name='data')
-        )
-
-        previous_operation_hmi_mag = hmi_mag_chain.process(
-            file
-        )
-
-        aia_prep_chain = AIAPrep(
-            operation_name='aiaprep', radius_factor=1.0
-        ).set_prev(
-            DownloadFiles(
-                operation_name='data', fname_from_rec=True
-            )
-        )
-
-        aia_align_chain = AlignAfterAIAPrep(
-            'aligned_data',
-            file,
-            radius_factor=1.0,
-            counter=2
-        ).set_prev(
-            aia_prep_chain
-        )
-
-        ldr_chain_aia = LimbDarkeningCorrection(
-            operation_name='ldr',
-            radius_factor=0.96,
-            counter=2
-        ).set_prev(
-            aia_align_chain
-        )
-
-        aia_chain_plages = Thresholding(
-            operation_name='mask',
-            suffix='plages',
-            k=1.71,
-            op=operator.ge,
-            post_processor=do_area_filtering,
-            radius_factor=0.96,
-            do_closing=True
-        ).set_prev(
-            ldr_chain_aia
-        )
-
-        aia_chain_active_networks = Thresholding(
-            operation_name='mask',
-            suffix='active_networks',
-            k=1.65,
-            op=operator.ge,
-            k2=1.71,
-            op2=operator.ge,
-            radius_factor=0.96,
-            value_1=1.0,
-            value_2=0.0,
-            do_closing=False,
-        ).set_prev(
-            ldr_chain_aia
-        )
-
         hmi_ic_chain = Thresholding(
             operation_name='mask',
             suffix=None,
@@ -370,6 +302,90 @@ class SouvikRework(Chain):
             )
         )
 
+        previous_operation_hmi_ic = hmi_ic_chain.process(
+            self._hmi_ic_file
+        )
+
+        exclude_mask_hmi_ic = PreviousOperation(
+            file=self._hmi_ic_file,
+            previous_op='mask',
+            suffix=None
+        )
+
+        hmi_mag_chain = AIAPrep(
+            operation_name='aiaprep',
+            radius_factor=1.0
+        ).set_prev(
+            DownloadFiles(operation_name='data')
+        )
+
+        previous_operation_hmi_mag = hmi_mag_chain.process(
+            file
+        )
+
+        aia_prep_chain = AIAPrep(
+            operation_name='aiaprep',
+            radius_factor=1.0
+        ).set_prev(
+            DownloadFiles(
+                operation_name='data', fname_from_rec=True
+            )
+        )
+
+        aia_align_chain = AlignAfterAIAPrep(
+            'aligned_data',
+            file,
+            radius_factor=1.0
+        ).set_prev(
+            aia_prep_chain
+        )
+
+        ldr_chain_aia = LimbDarkeningCorrection(
+            operation_name='ldr',
+            radius_factor=0.96
+        ).set_prev(
+            aia_align_chain
+        )
+
+        aia_chain_plages = Thresholding(
+            operation_name='mask',
+            suffix='plages',
+            k=1.71,
+            op=operator.ge,
+            post_processor=do_area_filtering,
+            radius_factor=0.96,
+            do_closing=True,
+            exclude_mask_file=[exclude_mask_hmi_ic]
+        ).set_prev(
+            ldr_chain_aia
+        )
+
+        previous_operation_aia_plages = aia_chain_plages.process(
+            self._aia_file,
+        )
+
+        exclude_mask_aia_plages = PreviousOperation(
+            file=self._aia_file,
+            previous_op='mask',
+            suffix='plages'
+        )
+
+        aia_chain_active_networks = Thresholding(
+            operation_name='mask',
+            suffix='active_networks',
+            k=1.65,
+            op=operator.ge,
+            k2=1.71,
+            op2=operator.ge,
+            radius_factor=0.96,
+            value_1=1.0,
+            value_2=0.0,
+            do_closing=False,
+            exclude_mask_file=[exclude_mask_hmi_ic, exclude_mask_aia_plages]
+        ).set_prev(
+            ldr_chain_aia
+        )
+
         hmi_crop_task = CropImage(
             operation_name='crop_hmi_afterprep',
             radius_factor=0.96
@@ -377,21 +393,12 @@ class SouvikRework(Chain):
             hmi_mag_chain
         )
 
-        sys.stdout.write(
-            'Created The Chains for MaskingMagnetograms :{}\n'.format(
-                file.filename
-            )
-        )
-
-        previous_operation_aia_plages = aia_chain_plages.process(
-            self._aia_file,
-        )
         previous_operation_active_networks = aia_chain_active_networks.process(
             self._aia_file,
         )
-        previous_operation_hmi_ic = hmi_ic_chain.process(
-            self._hmi_ic_file
-        )
+
+        hmi_ic_mask = self._hmi_ic_file.get_fits_hdu(
+            previous_operation_hmi_ic.operation_name)
 
         previous_operation_hmi_mag = hmi_crop_task.process(
             file
@@ -411,8 +418,6 @@ class SouvikRework(Chain):
             previous_operation_active_networks.operation_name,
             'active_networks'
         )
-        hmi_ic_mask = self._hmi_ic_file.get_fits_hdu(
-            previous_operation_hmi_ic.operation_name)
 
         hmi_mag_image = file.get_fits_hdu(
             previous_operation_hmi_mag.operation_name)
@@ -488,7 +493,4 @@ class SouvikRework(Chain):
 
         record.save()
 
-        self._aia_file.delete('mask', suffix='plages')
-        self._aia_file.delete('mask', suffix='active_networks')
-        self._hmi_ic_file.delete('mask')
         return masked_image, hmi_mag_image.header
