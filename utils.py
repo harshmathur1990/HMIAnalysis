@@ -216,6 +216,8 @@ def do_limb_darkening_correction(
     image, header, radius_factor=1.0, kernel_size=105
 ):
 
+    image[np.where(image < 0)] = 0
+
     small_image = skimage.transform.resize(
         image,
         output_shape=(512, 512),

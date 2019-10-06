@@ -217,7 +217,7 @@ class DownloadFiles(Chain):
 
 
 def do_area_filtering(mask):
-    area_per_pixel = (0.5 / 60) * (0.5 / 60)
+    area_per_pixel = (0.6 / 60) * (0.6 / 60)
 
     pixel_in_onetenth_arcminute = 0.1 / area_per_pixel
 
