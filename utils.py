@@ -270,7 +270,8 @@ def do_aiaprep(data, header, radius_factor=1.0):
         aiamap_afterprep.data,
         aiamap_afterprep.meta, factor=radius_factor)
 
-    result = result / aiamap_afterprep.meta['exptime']
+    if 'exptime' in aiamap_afterprep.meta:
+        result = result / aiamap_afterprep.meta['exptime']
 
     return result, aiamap_afterprep.meta
 
