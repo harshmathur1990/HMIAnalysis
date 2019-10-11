@@ -13,6 +13,7 @@ from skimage.draw import circle
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 import sunpy.physics.differential_rotation
+import skimage
 # from multiprocessing import Semaphore
 
 
@@ -249,7 +250,9 @@ def do_limb_darkening_correction(
 
     result[np.isnan(result)] = 0.0
 
-    return result
+    result = result / np.max(result)
+
+    return skimage.exposure.equalize_adapthist(result, clip_limit=0.02)
 
 
 def do_aiaprep(data, header, radius_factor=1.0):
@@ -266,6 +269,8 @@ def do_aiaprep(data, header, radius_factor=1.0):
     result = set_nan_to_non_sun(
         aiamap_afterprep.data,
         aiamap_afterprep.meta, factor=radius_factor)
+
+    result = result / aiamap_afterprep.meta['exptime']
 
     return result, aiamap_afterprep.meta
 
