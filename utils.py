@@ -169,7 +169,7 @@ def set_nan_to_non_sun(image, header, factor=1.0):
         )
     )
 
-    rr, cc = circle(center_x, center_y, radius * factor)
+    rr, cc = circle(center_x - 1, center_y - 1, radius * factor)
 
     mask = np.zeros_like(image)
 
