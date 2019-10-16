@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 import sunpy.physics.differential_rotation
 import skimage
+import sunpy.time
 # from multiprocessing import Semaphore
 
 
@@ -303,6 +304,63 @@ def do_align(
     )
 
     return result, aia_map_rotated.meta
+
+
+def get_julian_day(file_dto):
+    file_hdu = file_dto.get_fits_hdu('data')
+
+    header = file_hdu.header
+
+    time = sunpy.time.parse_time(header['T_OBS'])
+
+    return time.jd
+
+
+def get_date(file_dto):
+    file_hdu = file_dto.get_fits_hdu('data')
+
+    header = file_hdu.header
+
+    time = sunpy.time.parse_time(header['T_OBS'])
+
+    return time.datetime.date()
+
+
+def prepare_get_corresponding_images(aia_images, vis_images):
+
+    aia_ordered_list = list()
+
+    vis_ordered_list = list()
+
+    for aia_image in aia_images:
+        aia_ordered_list.append(get_julian_day(aia_image))
+
+    for vis_image in vis_images:
+        vis_ordered_list.append(get_julian_day(aia_image))
+
+    aia_ordered_list = np.array(aia_ordered_list)
+
+    vis_ordered_list = np.array(vis_ordered_list)
+
+    def get_corresponding_images(hmi_image):
+
+        julian_day_hmi = get_julian_day(hmi_image)
+
+        aia_subtract_array = np.abs(aia_ordered_list - julian_day_hmi)
+
+        vis_subtract_array = np.abs(vis_ordered_list - julian_day_hmi)
+
+        aia_argmin = np.argmin(aia_subtract_array)
+
+        vis_argmin = np.argmin(vis_subtract_array)
+
+        if aia_subtract_array[aia_argmin] < 0.5 and \
+                vis_subtract_array[vis_argmin] < 0.5:
+            return aia_images[aia_argmin], vis_images[vis_argmin], True
+
+        return None, None, False
+
+    return get_corresponding_images
 
 
 def initialize():

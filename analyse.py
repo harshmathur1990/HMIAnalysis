@@ -2,7 +2,6 @@
 import sys
 import os
 import datetime
-from datetime import timedelta
 import numpy as np
 import traceback
 # from concurrent.futures import ProcessPoolExecutor
@@ -11,10 +10,10 @@ from chains import SouvikRework
 from utils import get_images, Base, engine
 from model import Record
 from dotenv import load_dotenv
-from utils import initialize
+from utils import initialize, prepare_get_corresponding_images, get_date
 
 
-def do_souvik_work(hmi_image, aia_image, vis_image, date_object):
+def do_souvik_work(hmi_image, aia_image, vis_image):
     sys.stdout.write(
         'Working on Files: {}:{}:{}\n'.format(
             hmi_image.filename,
@@ -26,8 +25,7 @@ def do_souvik_work(hmi_image, aia_image, vis_image, date_object):
     hmi_chain = SouvikRework(
         operation_name='souvik',
         aia_file=aia_image,
-        hmi_ic_file=vis_image,
-        date_object=date_object
+        hmi_ic_file=vis_image
     )
 
     previous_operation = hmi_chain.process(hmi_image)
@@ -93,17 +91,27 @@ def souvik_verify(start_date, no_of_years, days=365):
 
             continue
 
-        _date = _start_date
+        get_corresponding_images = prepare_get_corresponding_images(
+            aia_images, vis_images
+        )
 
-        for hmi_image, aia_image, vis_image in zip(
-            hmi_images, aia_images, vis_images
-        ):
+        for hmi_image in hmi_images:
 
-            sys.stdout.write('Startng work for Date: {}\n'.format(_date))
+            aia_image, vis_image, status = get_corresponding_images(
+                hmi_image
+            )
 
-            # hmi_image.date = _date
-            # aia_image.date = _date
-            # vis_image.date = _date
+            if not status:
+                sys.stdout.write(
+                    'No AIA or VIS image found for filename: {}\n'.format(
+                        hmi_image.filename
+                    )
+                )
+                continue
+
+            _date = get_date(hmi_image)
+
+            sys.stdout.write('Startng work for Date: {}\n'.format())
 
             record = Record.find_by_date(_date)
 
@@ -111,8 +119,7 @@ def souvik_verify(start_date, no_of_years, days=365):
                 do_souvik_work(
                     hmi_image,
                     aia_image,
-                    vis_image,
-                    _date
+                    vis_image
                 )
             else:
                 sys.stdout.write('Data Exists for Date: {}\n'.format(_date))
@@ -127,11 +134,9 @@ def souvik_verify(start_date, no_of_years, days=365):
             hmi_image.delete('aiaprep')
             hmi_image.delete('crop_hmi_afterprep')
             hmi_image.delete('souvik')
-            aia_image.delete_data()
-            vis_image.delete_data()
-            hmi_image.delete_data()
-
-            _date = _date + timedelta(days=1)
+            # aia_image.delete_data()
+            # vis_image.delete_data()
+            # hmi_image.delete_data()
 
         _start_date = _start_date.replace(
             year=_start_date.year + 1

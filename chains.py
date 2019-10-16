@@ -9,7 +9,7 @@ from skimage.draw import circle
 from skimage.measure import label, regionprops
 from skimage.morphology import closing, square
 from model import Record
-from utils import apply_mask, do_thresholding, \
+from utils import apply_mask, do_thresholding, get_date, get_julian_day, \
     do_limb_darkening_correction, do_aiaprep, do_align, set_nan_to_non_sun
 from dto import PreviousOperation
 
@@ -275,11 +275,10 @@ class CropImage(Chain):
 
 class SouvikRework(Chain):
 
-    def __init__(self, operation_name, aia_file, hmi_ic_file, date_object):
+    def __init__(self, operation_name, aia_file, hmi_ic_file):
         super().__init__(operation_name)
         self._aia_file = aia_file
         self._hmi_ic_file = hmi_ic_file
-        self._date_object = date_object
 
     def actual_process(self, file=None, previous_operation_name=None):
 
@@ -435,7 +434,9 @@ class SouvikRework(Chain):
         total_mask[total_mask >= 1.0] = 1.0
 
         no_of_pixels_total_field = len(
-            circle(2048.5, 2048.5, hmi_mag_image.header['R_SUN'] * 0.96)[0]
+            circle(
+                2048.5 - 1, 2048.5 - 1, hmi_mag_image.header['R_SUN'] * 0.96
+            )[0]
         )
 
         # apply mask is masking the features in the mask and
@@ -480,7 +481,13 @@ class SouvikRework(Chain):
         )
 
         record = Record(
-            date=self._date_object,
+            date=get_date(file),
+            hmi_filename=file.filename,
+            hmi_ic_filename=self._hmi_ic_file.filename,
+            aia_filename=self._aia_file.filename,
+            time_difference=np.abs(
+                get_julian_day(file) - get_julian_day(self._aia_file)
+            ),
             no_of_pixel_sunspot=no_of_sunspot_pixel,
             total_mag_field_sunspot=sunspot_field,
             no_of_pixel_plage_and_active=no_of_pixel_plage_and_active,

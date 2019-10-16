@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Date, Float
+from sqlalchemy import Column, Integer, Date, Float, String
 from sqlalchemy.orm import sessionmaker
 from utils import engine, Base
 
@@ -11,7 +11,15 @@ class Record(Base):
 
     id = Column(Integer, primary_key=True)
 
-    date = Column(Date, unique=True)
+    date = Column(Date, unique=True)  # Must be from HMI Filename
+
+    hmi_filename = Column(String)
+
+    hmi_ic_filename = Column(String)
+
+    aia_filename = Column(String)
+
+    time_difference = Column(Float)  # in Julian Days
 
     no_of_pixel_sunspot = Column(Integer)
 
@@ -28,6 +36,16 @@ class Record(Base):
     total_pixels = Column(Integer)
 
     total_magnetic_field = Column(Float)
+
+    mmf = Column(Float)
+
+    mmbf = Column(Float)
+
+    mmsf = Column(Float)
+
+    mmapf = Column(Float)
+
+    # verify_mmf = Column(Float)
 
     def save(self):
 
@@ -63,4 +81,4 @@ class Record(Base):
                 Record.date < date_object_upper
             )
 
-        return record_query.all()
+        return record_query.order_by(Record.date).all()
