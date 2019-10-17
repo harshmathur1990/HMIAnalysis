@@ -333,9 +333,9 @@ def get_julian_day_from_astropy_time(astropy_time):
 
 @timeit
 def get_julian_day(file_dto):
-    file_hdu = file_dto.get_fits_hdu('data')
+    header = file_dto.read_headers('data')
 
-    header = file_hdu.header
+    # header = file_hdu.header
 
     astropy_time = parse_time_from_sunpy(header)
 
@@ -344,9 +344,9 @@ def get_julian_day(file_dto):
 
 @timeit
 def get_date(file_dto):
-    file_hdu = file_dto.get_fits_hdu('data')
+    header = file_dto.read_headers('data')
 
-    header = file_hdu.header
+    # header = file_hdu.header
 
     time = sunpy.time.parse_time(header['T_OBS'])
 

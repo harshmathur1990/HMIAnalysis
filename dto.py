@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 from astropy.io import fits
+import sunpy.io
 import sunpy.io.fits
 import matplotlib.pyplot as plt
 from six.moves.urllib.error import HTTPError, URLError
@@ -89,6 +90,11 @@ class File(object):
             )
 
         return rv_fits_hdu
+
+    @timeit
+    def read_headers(self, directory, suffix=None):
+        path = self._get_path(directory, suffix=suffix)
+        return sunpy.io.read_headers(path)[1]
 
     def save(self, operation_name, data, header, suffix=None):
         filename = self._get_path(operation_name, suffix=suffix)
