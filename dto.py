@@ -67,7 +67,7 @@ class File(object):
 
         data_header_pairs = sunpy.io.read_file(path)
 
-        data, header = None
+        data, header = None, None
 
         if len(data_header_pairs) > 1:
             hdpair = data_header_pairs[1]
