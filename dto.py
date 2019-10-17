@@ -7,6 +7,7 @@ import sunpy.io.fits
 import matplotlib.pyplot as plt
 from six.moves.urllib.error import HTTPError, URLError
 from decor import retry
+from utils import timeit
 # from utils import sem
 
 
@@ -60,6 +61,7 @@ class File(object):
     def is_exist_in_directory(self, directory, suffix=None):
         return os.path.exists(self._get_path(directory, suffix=suffix))
 
+    @timeit
     def get_fits_hdu(self, directory, suffix=None):
         path = self._get_path(directory, suffix=suffix)
         fits_image = fits.open(path)

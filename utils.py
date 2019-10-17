@@ -322,14 +322,24 @@ def do_align(
 
 
 @timeit
+def parse_time_from_sunpy(header):
+    return sunpy.time.parse_time(header['T_OBS'])
+
+
+@timeit
+def get_julian_day_from_astropy_time(astropy_time):
+    return astropy_time.jd
+
+
+@timeit
 def get_julian_day(file_dto):
     file_hdu = file_dto.get_fits_hdu('data')
 
     header = file_hdu.header
 
-    time = sunpy.time.parse_time(header['T_OBS'])
+    astropy_time = parse_time_from_sunpy(header)
 
-    return time.jd
+    return get_julian_day_from_astropy_time(astropy_time)
 
 
 @timeit
