@@ -94,17 +94,17 @@ def get_data_objects_from_local(_start_date):
 
     hmi_files = [
         x for x in everything if x.is_file() and
-        x.name.endswith('.fits') and x.startswith('hmi.m_720s')
+        x.name.endswith('.fits') and x.name.startswith('hmi.m_720s')
     ]
 
     aia_files = [
         x for x in everything if x.is_file() and
-        x.name.endswith('.fits') and x.startswith('aia')
+        x.name.endswith('.fits') and x.name.startswith('aia')
     ]
 
     vis_files = [
         x for x in everything if x.is_file() and
-        x.name.endswith('.fits') and x.startswith('hmi.ic')
+        x.name.endswith('.fits') and x.name.startswith('hmi.ic')
     ]
 
     hmi_images = list()
