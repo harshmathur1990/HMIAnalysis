@@ -299,11 +299,11 @@ def do_align(
     radius_factor=1.0
 ):
 
-    hmi_prep_hdu = hmi_file.get_fits_hdu(
+    data, header = hmi_file.get_fits_hdu(
         'aiaprep',
     )
 
-    hmiprep_map = sunpy.map.Map(hmi_prep_hdu.data, hmi_prep_hdu.header)
+    hmiprep_map = sunpy.map.Map(data, header)
 
     aia_map = sunpy.map.Map(aia_data, aia_header)
 

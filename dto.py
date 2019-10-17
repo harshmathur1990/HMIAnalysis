@@ -2,7 +2,6 @@
 import os
 import sys
 import numpy as np
-from astropy.io import fits
 import sunpy.io
 import sunpy.io.fits
 import matplotlib.pyplot as plt
@@ -65,18 +64,20 @@ class File(object):
     @timeit
     def get_fits_hdu(self, directory, suffix=None):
         path = self._get_path(directory, suffix=suffix)
-        fits_image = fits.open(path)
 
-        rv_fits_hdu = None
+        data_header_pairs = sunpy.io.read_file(path)
 
-        for fits_hdu in fits_image:
-            fits_hdu.verify('silentfix')
-            if fits_hdu.data is not None:
-                rv_fits_hdu = fits_hdu
-                break
+        data, header = None
+
+        if len(data_header_pairs) > 1:
+            hdpair = data_header_pairs[1]
+        else:
+            hdpair = data_header_pairs[0]
+
+        data, header = hdpair.data, hdpair.header
 
         if directory == 'data':
-            _data = rv_fits_hdu.data.copy()
+            _data = data.copy()
             _data -= np.nanmin(_data)
             _data[np.isnan(_data)] = 0.0
             _data[np.isinf(_data)] = 0.0
@@ -89,7 +90,7 @@ class File(object):
                 format='png'
             )
 
-        return rv_fits_hdu
+        return data, header
 
     @timeit
     def read_headers(self, directory, suffix=None):

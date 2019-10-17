@@ -136,11 +136,11 @@ class Thresholding(Chain):
 
     def actual_process(self, file=None, previous_operation_name=None):
 
-        fits_array = file.get_fits_hdu(previous_operation_name)
+        data, header = file.get_fits_hdu(previous_operation_name)
 
         image, invalid_result = self._do_thresholding(
-            fits_array.data,
-            fits_array.header
+            data,
+            header
         )
 
         if invalid_result:
@@ -157,12 +157,12 @@ class Thresholding(Chain):
 
         if self.exclude_mask_file is not None:
             for a_exclude_file in self.exclude_mask_file:
-                exclude_mask_hdu = a_exclude_file.get_fits_hdu()
-                exclude_mask = exclude_mask_hdu.data
+                emu_data, emu_header = a_exclude_file.get_fits_hdu()
+                exclude_mask = emu_data
                 rr, cc = np.where(exclude_mask == 1.0)
                 image[rr, cc] = 0.0
 
-        return image, fits_array.header
+        return image, header
 
 
 class LimbDarkeningCorrection(Chain):
@@ -178,12 +178,12 @@ class LimbDarkeningCorrection(Chain):
         )
 
     def actual_process(self, file=None, previous_operation_name=None):
-        fits_array = file.get_fits_hdu(previous_operation_name)
+        data, header = file.get_fits_hdu(previous_operation_name)
 
         image = self._do_limb_darkening_correction(
-            fits_array.data, fits_array.header)
+            data, header)
 
-        return image, fits_array.header
+        return image, header
 
 
 class AIAPrep(Chain):
@@ -201,9 +201,9 @@ class AIAPrep(Chain):
         )
 
     def actual_process(self, file=None, previous_operation_name=None):
-        fits_array = file.get_fits_hdu(previous_operation_name)
+        data, header = file.get_fits_hdu(previous_operation_name)
 
-        return self._do_aiaprep(fits_array.data, fits_array.header)
+        return self._do_aiaprep(data, header)
 
 
 class DownloadFiles(Chain):
@@ -252,9 +252,9 @@ class AlignAfterAIAPrep(Chain):
         )
 
     def actual_process(self, file=None, previous_operation_name=None):
-        fits_array = file.get_fits_hdu(previous_operation_name)
+        data, header = file.get_fits_hdu(previous_operation_name)
 
-        return self._do_align(fits_array.data, fits_array.header)
+        return self._do_align(data, header)
 
 
 class CropImage(Chain):
@@ -264,13 +264,13 @@ class CropImage(Chain):
         self._radius_factor = radius_factor
 
     def actual_process(self, file=None, previous_operation_name=None):
-        fits_array = file.get_fits_hdu(previous_operation_name)
+        data, header = file.get_fits_hdu(previous_operation_name)
 
         return set_nan_to_non_sun(
-            fits_array.data,
-            fits_array.header,
+            data,
+            header,
             factor=self._radius_factor
-        ), fits_array.header
+        ), header
 
 
 class SouvikRework(Chain):
@@ -396,7 +396,7 @@ class SouvikRework(Chain):
             self._aia_file,
         )
 
-        hmi_ic_mask = self._hmi_ic_file.get_fits_hdu(
+        hmi_ic_mask_data, hmi_ic_mask_header = self._hmi_ic_file.get_fits_hdu(
             previous_operation_hmi_ic.operation_name)
 
         previous_operation_hmi_mag = hmi_crop_task.process(
@@ -409,33 +409,38 @@ class SouvikRework(Chain):
             )
         )
 
-        aia_mask_plages = self._aia_file.get_fits_hdu(
+        ampd, amph = self._aia_file.get_fits_hdu(
             previous_operation_aia_plages.operation_name,
             'plages'
         )
-        aia_mask_active_networks = self._aia_file.get_fits_hdu(
+
+        aia_mask_plages_data, _ = ampd, amph
+
+        apnd, apnh = self._aia_file.get_fits_hdu(
             previous_operation_active_networks.operation_name,
             'active_networks'
         )
 
-        hmi_mag_image = file.get_fits_hdu(
+        aia_mask_active_networks_data, _ = apnd, apnh
+
+        hmi_mag_image_data, hmi_mag_image_header = file.get_fits_hdu(
             previous_operation_hmi_mag.operation_name)
 
-        masked_image = hmi_mag_image.data.copy()
+        masked_image = hmi_mag_image_data.copy()
 
         total_mask = np.add(
             np.add(
-                aia_mask_plages.data,
-                aia_mask_active_networks.data
+                aia_mask_plages_data,
+                aia_mask_active_networks_data
             ),
-            hmi_ic_mask.data
+            hmi_ic_mask_data
         )
 
         total_mask[total_mask >= 1.0] = 1.0
 
         no_of_pixels_total_field = len(
             circle(
-                2048.5 - 1, 2048.5 - 1, hmi_mag_image.header['R_SUN'] * 0.96
+                2048.5 - 1, 2048.5 - 1, hmi_mag_image_header['R_SUN'] * 0.96
             )[0]
         )
 
@@ -449,7 +454,7 @@ class SouvikRework(Chain):
             total_mask
         )
 
-        total_magnetic_field = np.nansum(hmi_mag_image.data)
+        total_magnetic_field = np.nansum(hmi_mag_image_data)
 
         def get_no_of_pixel_and_field(mask, image):
 
@@ -464,20 +469,20 @@ class SouvikRework(Chain):
             return no_of_pixels, np.nansum(_masked_image)
 
         mask_active_network_plage = np.add(
-            aia_mask_plages.data,
-            aia_mask_active_networks.data
+            aia_mask_plages_data,
+            aia_mask_active_networks_data
         )
 
         mask_active_network_plage[mask_active_network_plage >= 1.0] = 1.0
 
         a, b = get_no_of_pixel_and_field(
-            mask_active_network_plage, hmi_mag_image.data
+            mask_active_network_plage, hmi_mag_image_data
         )
 
         no_of_pixel_plage_and_active, total_mag_field_plage_active = a, b
 
         no_of_sunspot_pixel, sunspot_field = get_no_of_pixel_and_field(
-            hmi_ic_mask.data, hmi_mag_image.data
+            hmi_ic_mask_data, hmi_mag_image_data
         )
 
         record = Record(
@@ -500,4 +505,4 @@ class SouvikRework(Chain):
 
         record.save()
 
-        return masked_image, hmi_mag_image.header
+        return masked_image, hmi_mag_image_header
