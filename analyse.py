@@ -97,10 +97,14 @@ def get_data_objects_from_local(_start_date):
         x.name.endswith('.fits') and x.name.startswith('hmi.m_720s')
     ]
 
+    everything = data_path.glob('**/*')
+
     aia_files = [
         x for x in everything if x.is_file() and
         x.name.endswith('.fits') and x.name.startswith('aia')
     ]
+
+    everything = data_path.glob('**/*')
 
     vis_files = [
         x for x in everything if x.is_file() and
