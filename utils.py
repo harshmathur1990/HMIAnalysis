@@ -15,6 +15,7 @@ from sqlalchemy.ext.declarative import declarative_base
 import sunpy.physics.differential_rotation
 import skimage
 import sunpy.time
+import time
 # from multiprocessing import Semaphore
 
 
@@ -32,6 +33,20 @@ except Exception:
 
 
 # sem = Semaphore(value=1)
+
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        sys.stdout.write(
+            '{} : {} ms\n'.format(
+                method.__name__, (te - ts) * 1000
+            )
+        )
+        return result
+    return timed
 
 
 def nth_repl(s, sub, repl, nth):
@@ -306,6 +321,7 @@ def do_align(
     return result, aia_map_rotated.meta
 
 
+@timeit
 def get_julian_day(file_dto):
     file_hdu = file_dto.get_fits_hdu('data')
 
@@ -316,6 +332,7 @@ def get_julian_day(file_dto):
     return time.jd
 
 
+@timeit
 def get_date(file_dto):
     file_hdu = file_dto.get_fits_hdu('data')
 
@@ -336,7 +353,7 @@ def prepare_get_corresponding_images(aia_images, vis_images):
         aia_ordered_list.append(get_julian_day(aia_image))
 
     for vis_image in vis_images:
-        vis_ordered_list.append(get_julian_day(aia_image))
+        vis_ordered_list.append(get_julian_day(vis_image))
 
     aia_ordered_list = np.array(aia_ordered_list)
 
