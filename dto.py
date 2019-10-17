@@ -94,7 +94,7 @@ class File(object):
     @timeit
     def read_headers(self, directory, suffix=None):
         path = self._get_path(directory, suffix=suffix)
-        return sunpy.io.read_headers(path)[1]
+        return sunpy.io.read_file_header(path)[1]
 
     def save(self, operation_name, data, header, suffix=None):
         filename = self._get_path(operation_name, suffix=suffix)
