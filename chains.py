@@ -374,7 +374,7 @@ class SouvikRework(Chain):
             suffix='active_networks',
             k=1.65,
             op=operator.ge,
-            k2=1.71,
+            k2=1.9,
             op2=operator.ge,
             radius_factor=0.96,
             value_1=1.0,

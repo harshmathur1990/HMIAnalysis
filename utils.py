@@ -189,6 +189,8 @@ def set_nan_to_non_sun(image, header, factor=1.0):
 
     mask = np.zeros_like(image)
 
+    mask[mask == 0.0] = np.nan
+
     mask[rr, cc] = 1.0
 
     # mask[mask == 0.0] = 0.0
@@ -230,7 +232,7 @@ def do_thresholding(
 
 
 def do_limb_darkening_correction(
-    image, header, radius_factor=1.0, kernel_size=105
+    image, header, radius_factor=1.0, kernel_size=105, clip_limit=0.02
 ):
 
     image[np.where(image < 0)] = 0
@@ -268,7 +270,7 @@ def do_limb_darkening_correction(
 
     result = result / np.max(result)
 
-    return skimage.exposure.equalize_adapthist(result, clip_limit=0.02)
+    return skimage.exposure.equalize_adapthist(result, clip_limit=clip_limit)
 
 
 def do_aiaprep(data, header, radius_factor=1.0):
