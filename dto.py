@@ -65,7 +65,11 @@ class File(object):
     def get_fits_hdu(self, directory, suffix=None):
         path = self._get_path(directory, suffix=suffix)
 
-        data_header_pairs = sunpy.io.read_file(path)
+        try:
+            data_header_pairs = sunpy.io.read_file(path)
+        except:
+            sys.stdout.write('Couldn\'t read the file {}, {}, {}'.format(self.filename, directory, suffix))
+            sys.exit(1)
 
         data, header = None, None
 
@@ -169,7 +173,12 @@ class PreviousOperation(object):
         self._suffix = suffix
 
     def get_fits_hdu(self):
-        return self._file.get_fits_hdu(
-            directory=self._previous_op,
-            suffix=self._suffix
-        )
+        try:
+            return self._file.get_fits_hdu(
+                directory=self._previous_op,
+                suffix=self._suffix
+            )
+        except:
+            sys.stdout.write('Couldn\'t read the file {}, {}, {}'.format(self._file.filename, self._previous_op, self._suffix))
+            sys.exit(1)
+
