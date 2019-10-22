@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import traceback
 import numpy as np
 import sunpy.io
 import sunpy.io.fits
@@ -67,8 +68,14 @@ class File(object):
 
         try:
             data_header_pairs = sunpy.io.read_file(path)
-        except:
-            sys.stdout.write('Couldn\'t read the file {}, {}, {}'.format(self.filename, directory, suffix))
+        except Exception:
+            err = traceback.format_exc()
+            sys.stdout.write(err)
+            sys.stdout.write(
+                'Couldn\'t read the file {}, {}, {}'.format(
+                    self.filename, directory, suffix
+                )
+            )
             sys.exit(1)
 
         data, header = None, None
@@ -79,20 +86,6 @@ class File(object):
             hdpair = data_header_pairs[0]
 
         data, header = hdpair.data, hdpair.header
-
-        if directory == 'data':
-            _data = data.copy()
-            _data -= np.nanmin(_data)
-            _data[np.isnan(_data)] = 0.0
-            _data[np.isinf(_data)] = 0.0
-            _data = _data / np.nanmax(_data)
-            _data = np.uint8(_data * 255)
-            plt.imsave(
-                path + '.png',
-                _data,
-                cmap='gray',
-                format='png'
-            )
 
         return data, header
 
@@ -145,19 +138,9 @@ class File(object):
         ):
             sys.stdout.write(
                 '{} does not exist, downloading...\n'.format(self.filename))
-            # sys.stdout.write(
-            #     'Value of Semaphore before downloading: {}\n'.format(sem)
-            # )
-            # sem.acquire()
-            # sys.stdout.write(
-            #     'Value of Semaphore while downloading: {}\n'.format(sem)
-            # )
+
             self.request.download(
                 date_folder, self.id, fname_from_rec=fname_from_rec)
-            # sem.release()
-            # sys.stdout.write(
-            #     'Value of Semaphore after downloading: {}\n'.format(sem)
-            # )
 
         else:
             sys.stdout.write('{} exists, skipping...\n'.format(self.filename))
@@ -178,7 +161,13 @@ class PreviousOperation(object):
                 directory=self._previous_op,
                 suffix=self._suffix
             )
-        except:
-            sys.stdout.write('Couldn\'t read the file {}, {}, {}'.format(self._file.filename, self._previous_op, self._suffix))
+        except Exception:
+            err = traceback.format_exc()
+            sys.stdout.write(err)
+            sys.stdout.write(
+                'Couldn\'t read the file {}, {}, {}'.format(
+                    self._file.filename, self._previous_op, self._suffix
+                )
+            )
             sys.exit(1)
 

@@ -209,9 +209,6 @@ def souvik_verify(start_date, days=365, data_present=False):
         hmi_image.delete('aiaprep')
         hmi_image.delete('crop_hmi_afterprep')
         hmi_image.delete('souvik')
-        # aia_image.delete_data()
-        # vis_image.delete_data()
-        # hmi_image.delete_data()
 
 
 def run():
