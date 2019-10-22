@@ -24,7 +24,17 @@ engine = create_engine('sqlite:///hmi.db', echo=True)
 
 
 try:
-    c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
+    data_present = False
+    try:
+        argument = int(sys.argv[5])
+        if argument > 0:
+            data_present = True
+    except Exception:
+        data_present = False
+    if not data_present:
+        c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
+    else:
+        c = None
 except Exception:
     err = traceback.format_exc()
     sys.stdout.write('Failed to Create the Drms Client\n')
