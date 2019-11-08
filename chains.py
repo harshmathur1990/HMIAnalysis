@@ -291,7 +291,7 @@ class SouvikRework(Chain):
         hmi_ic_chain = Thresholding(
             operation_name='mask',
             suffix=None,
-            k=0.4,
+            k=-5,
             op=operator.le,
             radius_factor=0.96,
             do_closing=True
