@@ -242,7 +242,7 @@ def do_thresholding(
 
 
 def do_limb_darkening_correction(
-    image, header, radius_factor=1.0, kernel_size=105, clip_limit=0.02
+    image, header, radius_factor=1.0, kernel_size=105, clip_limit=0.01
 ):
 
     image[np.where(image < 0)] = 0
@@ -305,17 +305,14 @@ def do_aiaprep(data, header, radius_factor=1.0):
 
 
 def do_align(
-    hmi_file,
+    hmi_data,
+    hmi_header,
     aia_data,
     aia_header,
     radius_factor=1.0
 ):
 
-    data, header = hmi_file.get_fits_hdu(
-        'aiaprep',
-    )
-
-    hmiprep_map = sunpy.map.Map(data, header)
+    hmiprep_map = sunpy.map.Map(hmi_data, hmi_header)
 
     aia_map = sunpy.map.Map(aia_data, aia_header)
 

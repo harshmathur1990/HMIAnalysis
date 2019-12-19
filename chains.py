@@ -244,8 +244,13 @@ class AlignAfterAIAPrep(Chain):
 
     def _do_align(self, aia_data, aia_header):
 
+        hmi_data, hmi_header = self._hmi_file.get_fits_hdu(
+            'aiaprep',
+        )
+
         return do_align(
-            self._hmi_file,
+            hmi_data,
+            hmi_header,
             aia_data,
             aia_header,
             radius_factor=self._radius_factor
@@ -372,9 +377,9 @@ class SouvikRework(Chain):
         aia_chain_active_networks = Thresholding(
             operation_name='mask',
             suffix='active_networks',
-            k=1.65,
+            k=1.71,
             op=operator.ge,
-            k2=1.9,
+            k2=7,
             op2=operator.ge,
             radius_factor=0.96,
             value_1=1.0,

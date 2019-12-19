@@ -166,6 +166,11 @@ def souvik_verify(start_date, days=365, data_present=False):
             _start_date
         )
 
+    download_only = int(sys.argv[6])
+
+    if download_only == 1:
+        return
+
     get_corresponding_images = prepare_get_corresponding_images(
         aia_images, vis_images
     )
