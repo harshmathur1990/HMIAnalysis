@@ -20,7 +20,20 @@ import time
 
 
 Base = declarative_base()
-engine = create_engine('sqlite:///hmi.db', echo=True)
+year = int(sys.argv[1])
+month = int(sys.argv[2])
+day = int(sys.argv[3])
+divisor = int(sys.argv[7])
+remainder = int(sys.argv[8])
+engine = create_engine(
+    'sqlite:///hmi_{}_{}_{}_{}_{}.db'.format(
+        year,
+        month,
+        day,
+        divisor,
+        remainder
+    )
+)
 
 
 try:
