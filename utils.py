@@ -280,7 +280,13 @@ def do_limb_darkening_correction(
 
     result = result / np.max(result)
 
-    return skimage.exposure.equalize_adapthist(result, clip_limit=clip_limit)
+    result = skimage.exposure.equalize_adapthist(result, clip_limit=clip_limit)
+
+    return set_nan_to_non_sun(
+        result,
+        header,
+        factor=radius_factor
+    )
 
 
 def do_aiaprep(data, header, radius_factor=1.0):

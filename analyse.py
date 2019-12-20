@@ -11,7 +11,8 @@ from chains import SouvikRework
 from utils import get_images, Base, engine
 from model import Record
 from dotenv import load_dotenv
-from utils import initialize, prepare_get_corresponding_images, get_date
+from utils import initialize, prepare_get_corresponding_images, \
+    get_date, get_julian_day
 
 
 def do_souvik_work(hmi_image, aia_image, vis_image):
@@ -175,7 +176,16 @@ def souvik_verify(start_date, days=365, data_present=False):
         aia_images, vis_images
     )
 
-    for hmi_image in hmi_images:
+    divisor = int(sys.argv[7])
+
+    remainder = int(sys.argv[8])
+
+    hmi_images.sort(key=get_julian_day)
+
+    for index, hmi_image in enumerate(hmi_images):
+
+        if index % divisor != remainder:
+            continue
 
         aia_image, vis_image, status = get_corresponding_images(
             hmi_image
@@ -241,7 +251,20 @@ def run():
 
 
 if __name__ == '__main__':
-    if not os.path.exists('hmi.db'):
+    year = int(sys.argv[1])
+    month = int(sys.argv[2])
+    day = int(sys.argv[3])
+    divisor = int(sys.argv[7])
+    remainder = int(sys.argv[8])
+    if not os.path.exists(
+        'hmi_{}_{}_{}_{}_{}.db'.format(
+            year,
+            month,
+            day,
+            divisor,
+            remainder
+        )
+    ):
         Base.metadata.create_all(engine)
     initialize()
     run()

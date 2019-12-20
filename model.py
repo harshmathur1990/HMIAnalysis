@@ -37,15 +37,15 @@ class Record(Base):
 
     total_magnetic_field = Column(Float)
 
-    # mmf = Column(Float)
+    mmf = Column(Float)
 
-    # mmbf = Column(Float)
+    mmbf = Column(Float)
 
-    # mmsf = Column(Float)
+    mmsf = Column(Float)
 
-    # mmapf = Column(Float)
+    mmapf = Column(Float)
 
-    # verify_mmf = Column(Float)
+    verify_mmf = Column(Float)
 
     def save(self):
 
