@@ -40,7 +40,7 @@ def generate_combined_file():
             continue
 
         con3.execute(
-            "ATTACH 'hmi.db_{}_{}_{}_{}_{}.db' as dba".format(
+            "ATTACH 'hmi_{}_{}_{}_{}_{}.db' as dba".format(
                 *argument
             )
         )
