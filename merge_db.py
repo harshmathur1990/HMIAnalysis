@@ -47,13 +47,9 @@ def generate_combined_file():
 
         con3.execute("BEGIN")
 
-        for row in con3.execute(
-            "SELECT * FROM dba.sqlite_master WHERE type='table'"
-        ):
-            combine = "INSERT INTO " + row[1] + \
-                " (date, hmi_filename, hmi_ic_filename, aia_filename, time_difference, no_of_pixel_sunspot, total_mag_field_sunspot, no_of_pixel_plage_and_active, total_mag_field_plage_active, no_of_pixel_background, total_background_field, total_pixels, total_magnetic_field) SELECT date, hmi_filename, hmi_ic_filename, aia_filename, time_difference, no_of_pixel_sunspot, total_mag_field_sunspot, no_of_pixel_plage_and_active, total_mag_field_plage_active, no_of_pixel_background, total_background_field, total_pixels, total_magnetic_field FROM dba." + row[1]
-            print(combine)
-            con3.execute(combine)
+        combine = "INSERT INTO record (date, hmi_filename, hmi_ic_filename, aia_filename, time_difference, no_of_pixel_sunspot, total_mag_field_sunspot, no_of_pixel_plage_and_active, total_mag_field_plage_active, no_of_pixel_background, total_background_field, total_pixels, total_magnetic_field) SELECT date, hmi_filename, hmi_ic_filename, aia_filename, time_difference, no_of_pixel_sunspot, total_mag_field_sunspot, no_of_pixel_plage_and_active, total_mag_field_plage_active, no_of_pixel_background, total_background_field, total_pixels, total_magnetic_field FROM dba.record"
+        print(combine)
+        con3.execute(combine)
 
         con3.commit()
         con3.execute("detach database dba")
