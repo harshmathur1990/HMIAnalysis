@@ -57,3 +57,7 @@ def generate_combined_file():
 
         con3.commit()
         con3.execute("detach database dba")
+
+
+if __name__ == '__main__':
+    generate_combined_file()
