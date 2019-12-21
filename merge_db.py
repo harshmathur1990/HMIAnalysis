@@ -35,6 +35,22 @@ def generate_combined_file():
 
     con3 = sqlite3.connect('hmi.db')
 
+    con3.execute(
+        'create table record_2 (id integer not null, date date , julday float, hmi_filename varchar, hmi_ic_filename varchar, aia_filename varchar, time_difference float, no_of_pixel_sunspot integer, total_mag_field_sunspot float, no_of_pixel_plage_and_active integer, total_mag_field_plage_active float, no_of_pixel_background integer, total_background_field float, total_pixels integer, total_magnetic_field float, mmf float, mmbf float, mmapf float, verify_mmf float, mmsf float, primary key(id))'
+    )
+
+    con3.execute(
+        'insert into record_2 select * from record'
+    )
+
+    con3.execute(
+        'drop table record'
+    )
+
+    con3.execute(
+        'alter table record_2 rename to record'
+    )
+
     for index, argument in enumerate(filenames):
         if index == 0:
             continue
