@@ -39,6 +39,12 @@ def generate_combined_file():
         if index == 0:
             continue
 
+        print (
+            "ATTACH 'hmi_{}_{}_{}_{}_{}.db' as dba".format(
+                *argument
+            )
+        )
+
         con3.execute(
             "ATTACH 'hmi_{}_{}_{}_{}_{}.db' as dba".format(
                 *argument
