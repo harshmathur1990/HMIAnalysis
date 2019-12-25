@@ -70,6 +70,7 @@ def generate_combined_file():
         file_dto = File(
             id=None,
             filename=hmi_filename,
+            r=None,
             date_object=date_object
         )
         julday = get_julian_day(file_dto)
@@ -114,6 +115,7 @@ def generate_combined_file():
             file_dto = File(
                 id=None,
                 filename=hmi_filename,
+                r=None,
                 date_object=date_object
             )
             julday = get_julian_day(file_dto)
