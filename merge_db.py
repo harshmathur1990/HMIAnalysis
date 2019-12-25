@@ -80,6 +80,8 @@ def generate_combined_file():
             )
         )
 
+    con3.commit()
+
     for index, argument in enumerate(filenames):
         if index == 0:
             continue
@@ -124,6 +126,8 @@ def generate_combined_file():
                     julday, a_record[0]
                 )
             )
+
+        con3.commit()
 
 
 if __name__ == '__main__':

@@ -138,3 +138,6 @@ venv
 */*.pyc
 */*/*.pyc
 */*/*/*.pyc
+
+data
+data/
