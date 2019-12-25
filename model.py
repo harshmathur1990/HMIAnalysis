@@ -4,6 +4,7 @@ from utils import engine, Base
 
 
 Session = sessionmaker(bind=engine)
+session = Session()
 
 
 class Record(Base):
@@ -47,11 +48,13 @@ class Record(Base):
 
     verify_mmf = Column(Float)
 
+    julday = Column(Float)
+
     def save(self):
 
-        session = Session()
+        if not self.id:
 
-        session.add(self)
+            session.add(self)
 
         session.commit()
 

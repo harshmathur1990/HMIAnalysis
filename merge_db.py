@@ -1,5 +1,9 @@
-import sqlite3
+import os
 import shutil
+import sqlite3
+import datetime
+from dto import File
+from utils import get_julian_day
 
 
 filenames = [
@@ -26,6 +30,9 @@ filenames = [
 
 def generate_combined_file():
 
+    if os.path.exists('hmi.db'):
+        os.remove('hmi.db')
+
     shutil.copyfile(
         'hmi_{}_{}_{}_{}_{}.db'.format(
             *filenames[0]
@@ -36,7 +43,7 @@ def generate_combined_file():
     con3 = sqlite3.connect('hmi.db')
 
     con3.execute(
-        'create table record_2 (id integer not null, date date , julday float, hmi_filename varchar, hmi_ic_filename varchar, aia_filename varchar, time_difference float, no_of_pixel_sunspot integer, total_mag_field_sunspot float, no_of_pixel_plage_and_active integer, total_mag_field_plage_active float, no_of_pixel_background integer, total_background_field float, total_pixels integer, total_magnetic_field float, mmf float, mmbf float, mmapf float, verify_mmf float, mmsf float, primary key(id))'
+        'create table record_2 (id integer not null, date date ,hmi_filename varchar, hmi_ic_filename varchar, aia_filename varchar, time_difference float, no_of_pixel_sunspot integer, total_mag_field_sunspot float, no_of_pixel_plage_and_active integer, total_mag_field_plage_active float, no_of_pixel_background integer, total_background_field float, total_pixels integer, total_magnetic_field float, mmf float, mmbf float, mmapf float, verify_mmf float, mmsf float, primary key(id))'
     )
 
     con3.execute(
@@ -50,6 +57,27 @@ def generate_combined_file():
     con3.execute(
         'alter table record_2 rename to record'
     )
+
+    con3.execute('ALTER TABLE record ADD julday float;')
+
+    result = list(con3.execute(
+        'select * from record where julday is null'
+    ))
+
+    for a_record in result:
+        hmi_filename = a_record[2]
+        date_object = datetime.date(filenames[0][0], 1, 1)
+        file_dto = File(
+            id=None,
+            filename=hmi_filename,
+            date_object=date_object
+        )
+        julday = get_julian_day(file_dto)
+        con3.execute(
+            'update record set julday={} where id={}'.format(
+                julday, a_record[0]
+            )
+        )
 
     for index, argument in enumerate(filenames):
         if index == 0:
@@ -75,6 +103,25 @@ def generate_combined_file():
 
         con3.commit()
         con3.execute("detach database dba")
+
+        result = list(con3.execute(
+            'select * from record where julday is null'
+        ))
+
+        for a_record in result:
+            hmi_filename = a_record[2]
+            date_object = datetime.date(argument[0], 1, 1)
+            file_dto = File(
+                id=None,
+                filename=hmi_filename,
+                date_object=date_object
+            )
+            julday = get_julian_day(file_dto)
+            con3.execute(
+                'update record set julday={} where id={}'.format(
+                    julday, a_record[0]
+                )
+            )
 
 
 if __name__ == '__main__':
