@@ -148,12 +148,12 @@ class Thresholding(Chain):
                 'Invalid LDR Result for Filename: {}'.format(file.filename)
             )
 
-        if self._post_processor:
-            image = self._post_processor(image)
-
         # 1.8 sec per call, 4% of the program
         if self.do_closing:
             image = closing(image, square(3))
+
+        if self._post_processor:
+            image = self._post_processor(image)
 
         if self.exclude_mask_file is not None:
             for a_exclude_file in self.exclude_mask_file:
@@ -377,9 +377,9 @@ class SouvikRework(Chain):
         aia_chain_active_networks = Thresholding(
             operation_name='mask',
             suffix='active_networks',
-            k=1.71,
+            k=2,
             op=operator.ge,
-            k2=5,
+            k2=6,
             op2=operator.ge,
             radius_factor=0.96,
             value_1=1.0,

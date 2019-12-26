@@ -141,3 +141,24 @@ venv
 
 data
 data/
+
+*.db
+outfile_*
+*.fits
+*.mp4
+aiaprep
+aiaprep/
+crop_hmi_afterprep
+crop_hmi_afterprep/
+aligned_data
+aligned_data/
+ldr
+ldr/
+mask
+mask/
+souvik
+souvik/
+._.DS_Store
+.DS_Store
+*DS_Store
+
