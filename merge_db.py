@@ -47,7 +47,7 @@ def generate_combined_file():
     )
 
     con3.execute(
-        'insert into record_2 select * from record'
+        'insert into record_2 (date ,hmi_filename, hmi_ic_filename, aia_filename, time_difference, no_of_pixel_sunspot, total_mag_field_sunspot, no_of_pixel_plage_and_active, total_mag_field_plage_active, no_of_pixel_background, total_background_field, total_pixels, total_magnetic_field, mmf, mmbf, mmapf, verify_mmf, mmsf) select date ,hmi_filename, hmi_ic_filename, aia_filename, time_difference, no_of_pixel_sunspot, total_mag_field_sunspot, no_of_pixel_plage_and_active, total_mag_field_plage_active, no_of_pixel_background, total_background_field, total_pixels, total_magnetic_field, mmf, mmbf, mmapf, verify_mmf, mmsf from record'
     )
 
     con3.execute(
