@@ -24,7 +24,7 @@ def plot_magnetic_field(
 
     fig, axs = plt.subplots(4)
 
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
     plt.gca().xaxis.set_major_locator(mdates.DayLocator())
 
