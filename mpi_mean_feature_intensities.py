@@ -164,6 +164,111 @@ class WorkObject(object):
         return hash(self.julian_day)
 
 
+def get_plage_active_network_intensity(
+    vis_data,
+    vis_header,
+    aia_file,
+    plage_mask_file,
+    active_network_mask_file
+):
+    fill_nans = False
+    aia_data, aia_header = sunpy.io.fits.read(
+        aia_file
+    )[1]
+    aia_data, aia_header = do_aiaprep(
+        aia_data, aia_header,
+        fill_nans=fill_nans
+    )
+
+    aia_data, aia_header = do_align(
+        vis_data, vis_header,
+        aia_data, aia_header,
+        fill_nans=fill_nans
+    )
+
+    aia_data, aia_total_pixels = set_nan_to_non_sun(
+        aia_data,
+        aia_header,
+        factor=0.96,
+        fill_nans=fill_nans,
+        return_total_pixels=True
+    )
+
+    plage_mask = skimage.color.rgb2gray(
+        imageio.imread(
+            plage_mask_file
+        )
+    )
+
+    active_network_mask = skimage.color.rgb2gray(
+        imageio.imread(
+            active_network_mask_file
+        )
+    )
+
+    plage_intensity = np.nansum(
+        np.multiply(
+            plage_mask,
+            aia_data
+        )
+    )
+
+    active_network_intensity = np.nansum(
+        np.multiply(
+            active_network_mask,
+            aia_data
+        )
+    )
+
+    no_of_pixel_plage_en = np.nansum(plage_mask)
+
+    no_of_pixels_active_networks = np.nansum(active_network_mask)
+
+    return no_of_pixel_plage_en, no_of_pixels_active_networks, \
+        plage_intensity, active_network_intensity
+
+
+def get_sunspot_intensity_and_total_pixels(
+    vis_file, sunspot_mask_file
+):
+    fill_nans = False
+
+    vis_data, vis_header = sunpy.io.fits.read(
+        vis_file
+    )[1]
+
+    vis_data, vis_header = do_aiaprep(
+        vis_data, vis_header,
+        fill_nans=fill_nans
+    )
+
+    vis_data, vis_total_pixels = set_nan_to_non_sun(
+        vis_data,
+        vis_header,
+        factor=0.96,
+        fill_nans=fill_nans,
+        return_total_pixels=True
+    )
+
+    sunspot_mask = skimage.color.rgb2gray(
+        imageio.imread(
+            sunspot_mask_file
+        )
+    )
+
+    no_pixel_sunspot = np.nansum(sunspot_mask)
+
+    sunspot_intensity = np.nansum(
+        np.multiply(
+            sunspot_mask,
+            vis_data
+        )
+    )
+
+    return no_pixel_sunspot, vis_total_pixels, \
+        sunspot_intensity, vis_data, vis_header
+
+
 def do_work(work_object):
 
     if work_object.aia_file.name not in plage_en_masks_dict:
@@ -190,137 +295,25 @@ def do_work(work_object):
         )
         return Status.Work_failure, None
 
-    fill_nans = False
-
-    aia_data, aia_header = sunpy.io.fits.read(
-        work_object.aia_file
-    )[1]
-
-    sys.stdout.write('Read {}\n'.format(work_object.aia_file))
-    aia_data, aia_header = do_aiaprep(
-        aia_data, aia_header,
-        fill_nans=fill_nans
+    a, b, c, d, e = get_sunspot_intensity_and_total_pixels(
+        work_object.vis_file, sunspot_masks_dict[work_object.vis_file.name]
     )
 
-    sys.stdout.write('Did AIAPrep {}\n'.format(work_object.aia_file))
+    no_pixel_sunspot, vis_total_pixels = a, b
 
-    hmi_data, hmi_header = sunpy.io.fits.read(
-        work_object.hmi_file
-    )[1]
+    sunspot_intensity, vis_data, vis_header = c, d, e
 
-    sys.stdout.write('Read {}\n'.format(work_object.hmi_file))
-    hmi_data, hmi_header = do_aiaprep(
-        hmi_data, hmi_header,
-        fill_nans=fill_nans
-    )
-
-    sys.stdout.write('Did AIAPrep {}\n'.format(work_object.hmi_file))
-    vis_data, vis_header = sunpy.io.fits.read(
-        work_object.vis_file
-    )[1]
-
-    sys.stdout.write('Read {}\n'.format(work_object.vis_file))
-    vis_data, vis_header = do_aiaprep(
-        vis_data, vis_header,
-        fill_nans=fill_nans
-    )
-
-    sys.stdout.write('Did AIAPrep {}\n'.format(work_object.vis_file))
-    aia_data, aia_header = do_align(
-        hmi_data, hmi_header,
-        aia_data, aia_header,
-        fill_nans=fill_nans
-    )
-
-    sys.stdout.write('Did Align {}\n'.format(work_object.aia_file))
-
-    hmi_data, hmi_total_pixels = set_nan_to_non_sun(
-        hmi_data,
-        hmi_header,
-        factor=0.96,
-        fill_nans=fill_nans,
-        return_total_pixels=True
-    )
-
-    aia_data, aia_total_pixels = set_nan_to_non_sun(
-        aia_data,
-        aia_header,
-        factor=0.96,
-        fill_nans=fill_nans,
-        return_total_pixels=True
-    )
-
-    vis_data, vis_total_pixels = set_nan_to_non_sun(
+    a, b, c, d = get_plage_active_network_intensity(
         vis_data,
         vis_header,
-        factor=0.96,
-        fill_nans=fill_nans,
-        return_total_pixels=True
+        work_object.aia_file,
+        plage_en_masks_dict[work_object.aia_file.name],
+        active_network_masks_dict[work_object.aia_file.name]
     )
 
-    sys.stdout.write('Cropped Files\n')
+    no_of_pixel_plage_en, no_of_pixels_active_networks = a, b
 
-    plage_mask_file = plage_en_masks_dict[work_object.aia_file.name]
-
-    active_network_mask_file = active_network_masks_dict[
-        work_object.aia_file.name
-    ]
-
-    sunspot_mask_file = sunspot_masks_dict[work_object.vis_file.name]
-
-    plage_mask = skimage.color.rgb2gray(
-        imageio.imread(
-            plage_mask_file
-        )
-    )
-
-    active_network_mask = skimage.color.rgb2gray(
-        imageio.imread(
-            active_network_mask_file
-        )
-    )
-
-    sunspot_mask = skimage.color.rgb2gray(
-        imageio.imread(
-            sunspot_mask_file
-        )
-    )
-
-    sys.stdout.write('Read and made gray masks\n')
-    no_of_pixel_plage_en = np.nansum(plage_mask)
-
-    no_of_pixels_active_networks = np.nansum(active_network_mask)
-
-    no_pixel_sunspot = np.nansum(sunspot_mask)
-
-    # no_of_pixel_background = hmi_total_pixels - (
-    #     no_of_pixel_plage_en,
-    #     no_of_pixels_active_networks,
-    #     no_pixel_sunspot
-    # )
-
-    plage_intensity = np.nansum(
-        np.multiply(
-            plage_mask,
-            aia_data
-        )
-    )
-
-    active_network_intensity = np.nansum(
-        np.multiply(
-            active_network_mask,
-            aia_data
-        )
-    )
-
-    sunspot_intensity = np.nansum(
-        np.multiply(
-            sunspot_mask,
-            vis_data
-        )
-    )
-
-    sys.stdout.write('Calculated Everything\n')
+    plage_intensity, active_network_intensity = c, d
 
     data = {
         'date': [get_date(work_object.hmi_file).strftime('%Y-%m-%d')],
@@ -336,7 +329,7 @@ def do_work(work_object):
         'active_networks_intensity': [active_network_intensity],
         'no_of_pixels_background': [0],
         'background_intensity': [0],
-        'total_pixels': [hmi_total_pixels]
+        'total_pixels': [vis_total_pixels]
     }
 
     data_frame = pd.DataFrame(
@@ -369,9 +362,10 @@ if __name__ == '__main__':
 
         for hmi_file in hmi_files:
 
-            aia_file, vis_file, julian_day, status_ci = get_corresponding_images(
+            a, b, c, d = get_corresponding_images(
                 hmi_file
             )
+            aia_file, vis_file, julian_day, status_ci = a, b, c, d
 
             work_object = WorkObject(hmi_file, aia_file, vis_file, julian_day)
             waiting_queue.add(work_object)
