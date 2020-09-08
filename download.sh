@@ -1,16 +1,120 @@
-tmux new-session -d -s session_2011 '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2011 1 1 365 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2011'
-tmux new-session -d -s session_2012_start '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2012 1 1 157 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2012_start'
-tmux new-session -d -s session_2012_mid '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2012 6 7 119 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2012_mid'
-tmux new-session -d -s session_2012_end '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2012 10 5 88 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2012_end'
-tmux new-session -d -s session_2013 '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2013 1 1 365 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2013'
-tmux new-session -d -s session_2014_start '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2014 1 1 296 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2014_start'
-tmux new-session -d -s session_2014_end '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2014 10 25 68 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2014_end'
-tmux new-session -d -s session_2015_start '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2015 1 1 360 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2015_start'
-tmux new-session -d -s session_2015_end '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2015 12 28 4 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2015_end'
-tmux new-session -d -s session_2016_start '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2016 1 1 215 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2016_start'
-tmux new-session -d -s session_2016_end '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2016 8 4 150 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2016_end'
-tmux new-session -d -s session_2017_start '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2017 1 1 150 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2017_start'
-tmux new-session -d -s session_2017_end '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2017 6 1 213 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2017_end'
-tmux new-session -d -s session_2018_start '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2018 1 1 285 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2018_start'
-tmux new-session -d -s session_2018_end '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2018 10 14 79 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2018_end'
-tmux new-session -d -s session_2019 '/data/harsh1/HMIAnalysis/env/bin/python -u analyse.py 2019 1 1 190 1 2>&1 | tee /data/harsh1/HMIAnalysis/outfile_2019'
+mkdir -p 2011-07-08
+cd 2011-07-08
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2011.01.01/aia.lev1_uv_24s.2011-07-07T235931Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2011-07-07T235931Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2011-10-27
+cd 2011-10-27
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2011.01.01/aia.lev1_uv_24s.2011-10-27T235931Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2011-10-27T235931Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2012-01-18
+cd 2012-01-18
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2012.01.01/aia.lev1_uv_24s.2012-01-18T235931Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2012-01-18T235931Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2012-05-15
+cd 2012-05-15
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2012.01.01/aia.lev1_uv_24s.2012-05-14T235931Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2012-05-14T235931Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2012-10-12
+cd 2012-10-12
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2012.01.01/aia.lev1_uv_24s.2012-10-12T235930Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2012-10-12T235930Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2013-02-14
+cd 2013-02-14
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2013.01.01/aia.lev1_uv_24s.2013-02-14T235930Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2013-02-14T235930Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2013-07-08
+cd 2013-07-08
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2013.01.01/aia.lev1_uv_24s.2013-07-07T235930Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2013-07-07T235930Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2013-11-13
+cd 2013-11-13
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2013.01.01/aia.lev1_uv_24s.2013-11-13T235930Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2013-11-13T235930Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2014-02-05
+cd 2014-02-05
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2014.01.01/aia.lev1_uv_24s.2014-02-05T235930Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2014-02-05T235930Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2014-05-06
+cd 2014-05-06
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2014.01.01/aia.lev1_uv_24s.2014-05-05T235930Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2014-05-05T235930Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2014-09-15
+cd 2014-09-15
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2014.01.01/aia.lev1_uv_24s.2014-09-14T235930Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2014-09-14T235930Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2015-02-21
+cd 2015-02-21
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2015.01.01/aia.lev1_uv_24s.2015-02-21T235930Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2015-02-21T235930Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2015-07-27
+cd 2015-07-27
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2015.01.01/aia.lev1_uv_24s.2015-07-26T235929Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2015-07-26T235929Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2015-12-08
+cd 2015-12-08
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2015.01.01/aia.lev1_uv_24s.2015-12-08T235929Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2015-12-08T235929Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2016-01-05
+cd 2016-01-05
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2016.01.01/aia.lev1_uv_24s.2016-01-05T235929Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2016-01-05T235929Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2016-03-11
+cd 2016-03-11
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2016.01.01/aia.lev1_uv_24s.2016-03-11T235929Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2016-03-11T235929Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2016-07-20
+cd 2016-07-20
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2016.01.01/aia.lev1_uv_24s.2016-07-19T235929Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2016-07-19T235929Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2016-11-28
+cd 2016-11-28
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2016.01.01/aia.lev1_uv_24s.2016-11-28T235929Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2016-11-28T235929Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2017-02-07
+cd 2017-02-07
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2017.01.01/aia.lev1_uv_24s.2017-02-07T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2017-02-07T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2017-05-08
+cd 2017-05-08
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2017.01.01/aia.lev1_uv_24s.2017-05-07T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2017-05-07T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2017-10-01
+cd 2017-10-01
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2017.01.01/aia.lev1_uv_24s.2017-09-30T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2017-09-30T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2017-12-27
+cd 2017-12-27
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2017.01.01/aia.lev1_uv_24s.2017-12-27T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2017-12-27T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2018-01-17
+cd 2018-01-17
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2018.01.01/aia.lev1_uv_24s.2018-01-17T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2018-01-17T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2018-03-15
+cd 2018-03-15
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2018.01.01/aia.lev1_uv_24s.2018-03-15T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2018-03-15T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2018-08-21
+cd 2018-08-21
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2018.01.01/aia.lev1_uv_24s.2018-08-20T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2018-08-20T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2018-11-09
+cd 2018-11-09
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2018.01.01/aia.lev1_uv_24s.2018-11-09T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2018-11-09T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2019-01-02
+cd 2019-01-02
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2019.01.01/aia.lev1_uv_24s.2019-01-02T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2019-01-02T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2019-03-11
+cd 2019-03-11
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2019.01.01/aia.lev1_uv_24s.2019-03-11T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2019-03-11T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2019-05-14
+cd 2019-05-14
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2019.01.01/aia.lev1_uv_24s.2019-05-13T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2019-05-13T235928Z.1600.image_lev1.fits.png
+cd ..
+mkdir -p 2019-07-08
+cd 2019-07-08
+scp harsh@delphinus:/data/harsh1/HMIAnalysis/aligned_data/2019.01.01/aia.lev1_uv_24s.2019-07-07T235928Z.1600.image_lev1.fits.png aiaprep_aia.lev1_uv_24s.2019-07-07T235928Z.1600.image_lev1.fits.png
+cd ..

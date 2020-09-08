@@ -15,7 +15,9 @@ from sqlalchemy.ext.declarative import declarative_base
 import sunpy.physics.differential_rotation
 import skimage
 import sunpy.time
+import sunpy.io
 import time
+from pathlib import Path
 # from multiprocessing import Semaphore
 
 
@@ -36,29 +38,29 @@ try:
         )
     )
 except Exception:
-    sys.stdout.write('Falling back to hmi.db')
+    sys.stdout.write('Falling back to hmi.db\n')
     engine = create_engine(
         'sqlite:///hmi.db'
     )
 
 
-try:
-    data_present = False
-    try:
-        argument = int(sys.argv[5])
-        if argument > 0:
-            data_present = True
-    except Exception:
-        data_present = False
-    if not data_present:
-        c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
-    else:
-        c = None
-except Exception:
-    err = traceback.format_exc()
-    sys.stdout.write('Failed to Create the Drms Client\n')
-    sys.stdout.write(err)
-    os._exit(1)
+# try:
+#     data_present = False
+#     try:
+#         argument = int(sys.argv[5])
+#         if argument > 0:
+#             data_present = True
+#     except Exception:
+#         data_present = False
+#     if not data_present:
+#         c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
+#     else:
+#         c = None
+# except Exception:
+#     err = traceback.format_exc()
+#     sys.stdout.write('Failed to Create the Drms Client\n')
+#     sys.stdout.write(err)
+#     os._exit(1)
 
 
 # sem = Semaphore(value=1)
@@ -198,7 +200,13 @@ def apply_mask(image, mask):
     return im
 
 
-def set_nan_to_non_sun(image, header, factor=1.0):
+def set_nan_to_non_sun(
+    image,
+    header,
+    factor=1.0,
+    fill_nans=True,
+    return_total_pixels=False
+):
     if not factor:
         factor = 1.0
 
@@ -208,17 +216,18 @@ def set_nan_to_non_sun(image, header, factor=1.0):
 
     center_y = header['CRPIX2']
 
-    sys.stdout.write(
-        'Center X: {}, Center Y: {} Radius: {}\n'.format(
-            center_x, center_y, radius
-        )
-    )
+    # sys.stdout.write(
+    #     'Center X: {}, Center Y: {} Radius: {}\n'.format(
+    #         center_x, center_y, radius
+    #     )
+    # )
 
     rr, cc = circle(center_x - 1, center_y - 1, radius * factor)
 
     mask = np.zeros_like(image)
 
-    mask[mask == 0.0] = np.nan
+    if fill_nans:
+        mask[mask == 0.0] = np.nan
 
     mask[rr, cc] = 1.0
 
@@ -228,6 +237,9 @@ def set_nan_to_non_sun(image, header, factor=1.0):
         mask,
         image
     )
+
+    if return_total_pixels:
+        return im, np.nansum(mask)
 
     return im
 
@@ -308,7 +320,7 @@ def do_limb_darkening_correction(
     )
 
 
-def do_aiaprep(data, header, radius_factor=1.0):
+def do_aiaprep(data, header, radius_factor=1.0, fill_nans=True):
     header['HGLN_OBS'] = 0
 
     aiamap = sunpy.map.Map(
@@ -321,7 +333,10 @@ def do_aiaprep(data, header, radius_factor=1.0):
 
     result = set_nan_to_non_sun(
         aiamap_afterprep.data,
-        aiamap_afterprep.meta, factor=radius_factor)
+        aiamap_afterprep.meta,
+        factor=radius_factor,
+        fill_nans=fill_nans
+    )
 
     if 'exptime' in aiamap_afterprep.meta:
         result = result / aiamap_afterprep.meta['exptime']
@@ -334,7 +349,8 @@ def do_align(
     hmi_header,
     aia_data,
     aia_header,
-    radius_factor=1.0
+    radius_factor=1.0,
+    fill_nans=True
 ):
 
     hmiprep_map = sunpy.map.Map(hmi_data, hmi_header)
@@ -349,25 +365,30 @@ def do_align(
     result = set_nan_to_non_sun(
         aia_map_rotated.data,
         aia_map_rotated.meta,
-        factor=radius_factor
+        factor=radius_factor,
+        fill_nans=fill_nans
     )
 
     return result, aia_map_rotated.meta
 
 
-@timeit
+# @timeit
 def parse_time_from_sunpy(header):
     return sunpy.time.parse_time(header['T_OBS'])
 
 
-@timeit
+# @timeit
 def get_julian_day_from_astropy_time(astropy_time):
     return astropy_time.jd
 
 
-@timeit
+# @timeit
 def get_julian_day(file_dto):
-    header = file_dto.read_headers('data')
+
+    if isinstance(file_dto, Path):
+        header = sunpy.io.read_file_header(file_dto, filetype='fits')[1]
+    else:
+        header = file_dto.read_headers('data')
 
     # header = file_hdu.header
 
@@ -376,9 +397,12 @@ def get_julian_day(file_dto):
     return get_julian_day_from_astropy_time(astropy_time)
 
 
-@timeit
+# @timeit
 def get_date(file_dto):
-    header = file_dto.read_headers('data')
+    if isinstance(file_dto, Path):
+        header = sunpy.io.read_file_header(file_dto, filetype='fits')[1]
+    else:
+        header = file_dto.read_headers('data')
 
     # header = file_hdu.header
 
@@ -387,7 +411,9 @@ def get_date(file_dto):
     return time.datetime.date()
 
 
-def prepare_get_corresponding_images(aia_images, vis_images):
+def prepare_get_corresponding_images(
+    aia_images, vis_images, return_julian_day=False
+):
 
     aia_ordered_list = list()
 
@@ -417,9 +443,16 @@ def prepare_get_corresponding_images(aia_images, vis_images):
 
         if aia_subtract_array[aia_argmin] < 0.5 and \
                 vis_subtract_array[vis_argmin] < 0.5:
-            return aia_images[aia_argmin], vis_images[vis_argmin], True
 
-        return None, None, False
+            if return_julian_day:
+                return aia_images[aia_argmin], vis_images[vis_argmin], julian_day_hmi, True
+            else:
+                return aia_images[aia_argmin], vis_images[vis_argmin], True
+
+        if return_julian_day:
+            return None, None, None, False
+        else:
+            return None, None, False
 
     return get_corresponding_images
 
