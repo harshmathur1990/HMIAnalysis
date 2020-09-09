@@ -395,6 +395,8 @@ if __name__ == '__main__':
 
         sys.stdout.write('Finished First Phase\n')
 
+        count = 0
+
         while len(running_queue) != 0 or len(waiting_queue) != 0:
             try:
                 status_dict = comm.recv(
@@ -419,11 +421,14 @@ if __name__ == '__main__':
             if jobstatus == Status.Work_done:
                 sys.stdout.write('Success: {}\n'.format(item.julian_day))
                 finished_queue.add(item)
-                if not list(hdf5_store.keys()):
+                if count == 0:
+                    sys.stdout.write('First Time\n')
                     status_dict['data_frame'].to_hdf(
                         filepath, 'data', format='t'
                     )
+                    count += 1
                 else:
+                    sys.stdout.write('Second Time\n')
                     hdf5_store.append(
                         'data',
                         status_dict['data_frame'],
