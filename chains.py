@@ -6,11 +6,11 @@ import numpy as np
 import sys
 import operator
 from skimage.draw import circle
-from skimage.measure import label, regionprops
 from skimage.morphology import closing, square
 from model import Record
 from utils import apply_mask, do_thresholding, get_date, get_julian_day, \
-    do_limb_darkening_correction, do_aiaprep, do_align, set_nan_to_non_sun
+    do_limb_darkening_correction, do_aiaprep, do_align, set_nan_to_non_sun, \
+    do_area_filtering
 from dto import PreviousOperation
 
 
@@ -214,20 +214,6 @@ class DownloadFiles(Chain):
 
     def actual_process(self, file=None, previous_operation_name=None):
         file.download_file(fname_from_rec=self._fname_from_rec)
-
-
-def do_area_filtering(mask):
-    area_per_pixel = (0.6 / 60) * (0.6 / 60)
-
-    pixel_in_onetenth_arcminute = 0.1 / area_per_pixel
-
-    label_image = label(mask)
-    regions = regionprops(label_image)
-    for region in regions:
-        if region.area < pixel_in_onetenth_arcminute:
-            for coords in region.coords:
-                mask[coords[0]][coords[1]] = 0.0
-    return mask
 
 
 class AlignAfterAIAPrep(Chain):

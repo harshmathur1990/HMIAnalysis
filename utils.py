@@ -18,6 +18,7 @@ import sunpy.time
 import sunpy.io
 import time
 from pathlib import Path
+from skimage.measure import label, regionprops
 # from multiprocessing import Semaphore
 
 
@@ -42,7 +43,7 @@ except Exception:
     engine = create_engine(
         'sqlite:///hmi.db'
     )
-
+c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
 
 # try:
 #     data_present = False
@@ -64,6 +65,20 @@ except Exception:
 
 
 # sem = Semaphore(value=1)
+
+
+def do_area_filtering(mask):
+    area_per_pixel = (0.6 / 60) * (0.6 / 60)
+
+    pixel_in_onetenth_arcminute = 0.1 / area_per_pixel
+
+    label_image = label(mask)
+    regions = regionprops(label_image)
+    for region in regions:
+        if region.area < pixel_in_onetenth_arcminute:
+            for coords in region.coords:
+                mask[coords[0]][coords[1]] = 0.0
+    return mask
 
 
 def timeit(method):

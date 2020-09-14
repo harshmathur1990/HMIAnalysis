@@ -23,5 +23,7 @@ if __name__ == '__main__':
         1600
     )
 
-    vis_images.download_file(output_dir='/home/harsh/data')
-    aia_images.download_file(output_dir='/home/harsh/data')
+    for vis_image in vis_images:
+        vis_image.download_file(output_dir='/home/harsh/data')
+    for aia_image in aia_images:
+        aia_image.download_file(output_dir='/home/harsh/data')
