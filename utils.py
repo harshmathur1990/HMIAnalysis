@@ -460,7 +460,8 @@ def prepare_get_corresponding_images(
                 vis_subtract_array[vis_argmin] < 0.5:
 
             if return_julian_day:
-                return aia_images[aia_argmin], vis_images[vis_argmin], julian_day_hmi, True
+                return aia_images[aia_argmin], \
+                    vis_images[vis_argmin], julian_day_hmi, True
             else:
                 return aia_images[aia_argmin], vis_images[vis_argmin], True
 
@@ -468,6 +469,40 @@ def prepare_get_corresponding_images(
             return None, None, None, False
         else:
             return None, None, False
+
+    return get_corresponding_images
+
+
+def prepare_get_corresponding_aia_images(
+    aia_images, return_julian_day=False
+):
+
+    aia_ordered_list = list()
+
+    for aia_image in aia_images:
+        aia_ordered_list.append(get_julian_day(aia_image))
+
+    aia_ordered_list = np.array(aia_ordered_list)
+
+    def get_corresponding_images(hmi_image):
+
+        julian_day_hmi = get_julian_day(hmi_image)
+
+        aia_subtract_array = np.abs(aia_ordered_list - julian_day_hmi)
+
+        aia_argmin = np.argmin(aia_subtract_array)
+
+        if aia_subtract_array[aia_argmin] < 0.5:
+
+            if return_julian_day:
+                return aia_images[aia_argmin], julian_day_hmi, True
+            else:
+                return aia_images[aia_argmin], True
+
+        if return_julian_day:
+            return None, None, False
+        else:
+            return None, False
 
     return get_corresponding_images
 

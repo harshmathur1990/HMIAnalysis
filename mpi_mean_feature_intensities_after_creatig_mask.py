@@ -16,7 +16,7 @@ from pathlib import Path
 # from dask.distributed import LocalCluster, Client
 from mpi4py import MPI
 from skimage.morphology import closing, square
-from utils import prepare_get_corresponding_images, \
+from utils import prepare_get_corresponding_aia_images, \
     do_aiaprep, do_align, set_nan_to_non_sun, \
     get_date, do_thresholding, do_area_filtering
 
@@ -42,7 +42,6 @@ def save_model(fout, model):
 
 def populate_files(list_of_directories):
 
-    hmi_files = list()
     aia_files = list()
     vis_files = list()
 
@@ -58,15 +57,6 @@ def populate_files(list_of_directories):
 
         everything = a_directory.glob('**/*')
 
-        hmi_files.extend(
-            [
-                x for x in everything if x.is_file() and
-                x.name.endswith('.fits') and x.name.startswith('hmi.m_720s')
-            ]
-        )
-
-        everything = a_directory.glob('**/*')
-
         vis_files.extend(
             [
                 x for x in everything if x.is_file() and
@@ -75,23 +65,19 @@ def populate_files(list_of_directories):
         )
 
     sys.stdout.write(
-        'len(hmi_files): {}, len(aia_files): {}, len(vis_files): {}\n'.format(
-            len(hmi_files), len(aia_files), len(vis_files)
+        'len(aia_files): {}, len(vis_files): {}\n'.format(
+            len(aia_files), len(vis_files)
         )
     )
-    return hmi_files, aia_files, vis_files
+
+    return aia_files, vis_files
 
 
 class WorkObject(object):
-    def __init__(self, hmi_file, aia_file, vis_file, julian_day):
-        self._hmi_file = hmi_file
+    def __init__(self, aia_file, vis_file, julian_day):
         self._aia_file = aia_file
         self._vis_file = vis_file
         self._julian_day = julian_day
-
-    @property
-    def hmi_file(self):
-        return self._hmi_file
 
     @property
     def aia_file(self):
@@ -334,9 +320,8 @@ def do_work(work_object):
     total_intensity_aia = e
 
     data = {
-        'date': [get_date(work_object.hmi_file).strftime('%Y-%m-%d')],
+        'date': [get_date(work_object.vis_file).strftime('%Y-%m-%d')],
         'julian_day': [work_object.julian_day],
-        'hmi_filename': [work_object.hmi_file.name],
         'hmi_ic_filename': [work_object.vis_file.name],
         'aia_filename': [work_object.aia_file.name],
         'no_of_pixel_sunspot': [no_pixel_sunspot],
@@ -373,26 +358,25 @@ if __name__ == '__main__':
 
         hdf5_store = pd.HDFStore(filepath)
 
-        hmi_files, aia_files, vis_files = populate_files(list_of_directories)
+        aia_files, vis_files = populate_files(list_of_directories)
 
-        get_corresponding_images = prepare_get_corresponding_images(
-            aia_files, vis_files, return_julian_day=True
+        get_corresponding_images = prepare_get_corresponding_aia_images(
+            aia_files, return_julian_day=True
         )
 
-        for hmi_file in hmi_files:
+        for vis_file in vis_files:
 
-            a, b, c, d = get_corresponding_images(
-                hmi_file
+            a, b, c = get_corresponding_images(
+                vis_file
             )
-            aia_file, vis_file, julian_day, status_ci = a, b, c, d
+            aia_file, julian_day, status_ci = a, b, c
 
-            work_object = WorkObject(hmi_file, aia_file, vis_file, julian_day)
+            work_object = WorkObject(aia_file, vis_file, julian_day)
             waiting_queue.add(work_object)
 
         if list(hdf5_store.keys()):
             for index, row in hdf5_store['data'].iterrows():
                 work_object = WorkObject(
-                    row['hmi_filename'],
                     row['aia_filename'],
                     row['hmi_ic_filename'],
                     row['julian_day']
@@ -477,7 +461,6 @@ if __name__ == '__main__':
         columns = [
             'date',
             'julian_day',
-            'hmi_filename',
             'hmi_ic_filename',
             'aia_filename',
             'no_of_pixel_sunspot',
