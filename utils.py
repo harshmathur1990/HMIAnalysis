@@ -43,7 +43,7 @@ except Exception:
     engine = create_engine(
         'sqlite:///hmi.db'
     )
-c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
+# c = drms.Client(email='harsh.mathur@iiap.res.in', verbose=True)
 
 # try:
 #     data_present = False

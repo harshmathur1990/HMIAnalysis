@@ -1,8 +1,8 @@
 # import os
 import sys
 import enum
-import imageio
-import skimage.color
+# import imageio
+# import skimage.color
 import traceback
 import numpy as np
 # import joblib
@@ -113,11 +113,19 @@ class WorkObject(object):
 
 
 def get_plage_active_network_intensity(
+    work_object,
     vis_data,
     vis_header,
     aia_file,
     sunspot_mask
 ):
+
+    sys.stdout.write(
+        'AIA 1600 Processing on julian day: {}\n'.format(
+            work_object.julian_day
+        )
+    )
+
     fill_nans = False
     aia_data, aia_header = sunpy.io.fits.read(
         aia_file
@@ -141,7 +149,7 @@ def get_plage_active_network_intensity(
         return_total_pixels=True
     )
 
-    plage_mask = do_thresholding(
+    plage_mask, invalid_result = do_thresholding(
         aia_data,
         aia_header,
         k=1.71,
@@ -153,6 +161,14 @@ def get_plage_active_network_intensity(
         value_2=None
     )
 
+    if invalid_result:
+        sys.stdout.write(
+            'Invalid Plage Thresholding result for {}'.format(
+                aia_file
+            )
+        )
+        return False, None, None, None, None, None
+
     plage_mask = closing(plage_mask, square(3))
 
     plage_mask = do_area_filtering(plage_mask)
@@ -161,7 +177,7 @@ def get_plage_active_network_intensity(
 
     plage_mask[rr, cc] = 0.0
 
-    active_network_mask = do_thresholding(
+    active_network_mask, invalid_result = do_thresholding(
         aia_data,
         aia_header,
         k=2,
@@ -172,6 +188,14 @@ def get_plage_active_network_intensity(
         value_1=1.0,
         value_2=0.0
     )
+
+    if invalid_result:
+        sys.stdout.write(
+            'Invalid Active Networks Thresholding result for {}'.format(
+                aia_file
+            )
+        )
+        return False, None, None, None, None, None
 
     active_network_mask[rr, cc] = 0
 
@@ -193,17 +217,30 @@ def get_plage_active_network_intensity(
         )
     )
 
+    total_intensity_aia = np.nansum(
+        aia_data
+    )
+
     no_of_pixel_plage_en = np.nansum(plage_mask)
 
     no_of_pixels_active_networks = np.nansum(active_network_mask)
 
-    return no_of_pixel_plage_en, no_of_pixels_active_networks, \
-        plage_intensity, active_network_intensity
+    return True, no_of_pixel_plage_en, no_of_pixels_active_networks, \
+        plage_intensity, active_network_intensity, \
+        total_intensity_aia
 
 
 def get_sunspot_intensity_and_total_pixels(
+    work_object,
     vis_file
 ):
+
+    sys.stdout.write(
+        'Visible Processing on julian day: {}\n'.format(
+            work_object.julian_day
+        )
+    )
+
     fill_nans = False
 
     vis_data, vis_header = sunpy.io.fits.read(
@@ -237,7 +274,7 @@ def get_sunspot_intensity_and_total_pixels(
 
     if invalid_result:
         sys.stdout.write(
-            'Invalid Result for {}'.format(
+            'Invalid Thresholding result for {}'.format(
                 vis_file
             )
         )
@@ -259,11 +296,18 @@ def get_sunspot_intensity_and_total_pixels(
 
 def do_work(work_object):
 
-    s, a, b, c, d, e, f = get_sunspot_intensity_and_total_pixels(
+    sys.stdout.write(
+        'Working on julian day: {}\n'.format(
+            work_object.julian_day
+        )
+    )
+
+    s1, a, b, c, d, e, f = get_sunspot_intensity_and_total_pixels(
+        work_object,
         work_object.vis_file
     )
 
-    if not s:
+    if not s1:
         return Status.Work_failure, None
 
     no_pixel_sunspot, vis_total_pixels = a, b
@@ -272,16 +316,22 @@ def do_work(work_object):
 
     sunspot_mask = f
 
-    a, b, c, d = get_plage_active_network_intensity(
+    s2, a, b, c, d, e = get_plage_active_network_intensity(
+        work_object,
         vis_data,
         vis_header,
         work_object.aia_file,
         sunspot_mask
     )
 
+    if not s2:
+        return Status.Work_failure, None
+
     no_of_pixel_plage_en, no_of_pixels_active_networks = a, b
 
     plage_intensity, active_network_intensity = c, d
+
+    total_intensity_aia = e
 
     data = {
         'date': [get_date(work_object.hmi_file).strftime('%Y-%m-%d')],
@@ -297,6 +347,7 @@ def do_work(work_object):
         'active_networks_intensity': [active_network_intensity],
         'no_of_pixels_background': [0],
         'background_intensity': [0],
+        'total_intensity_aia': total_intensity_aia,
         'total_pixels': [vis_total_pixels]
     }
 
