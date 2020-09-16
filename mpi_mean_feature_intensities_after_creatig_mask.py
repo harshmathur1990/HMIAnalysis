@@ -18,7 +18,8 @@ from mpi4py import MPI
 from skimage.morphology import closing, square
 from utils import prepare_get_corresponding_aia_images, \
     do_aiaprep, do_align, set_nan_to_non_sun, \
-    get_date, do_thresholding, do_area_filtering
+    get_date, do_thresholding, do_area_filtering, \
+    do_limb_darkening_correction
 
 
 filepath = Path('/Volumes/Harsh 9599771751/HMIWorkAndData/intensity_results/results.h5')
@@ -95,7 +96,6 @@ class WorkObject(object):
     @property
     def julian_day_diff(self):
         return self._julian_day_diff
-    
 
     def __eq__(self, other):
         return self.julian_day == other.julian_day
@@ -118,7 +118,7 @@ def get_plage_active_network_intensity(
         )
     )
 
-    fill_nans = False
+    fill_nans = True
     aia_data, aia_header = sunpy.io.fits.read(
         aia_file
     )[1]
@@ -131,6 +131,12 @@ def get_plage_active_network_intensity(
         vis_data, vis_header,
         aia_data, aia_header,
         fill_nans=fill_nans
+    )
+
+    aia_data = do_limb_darkening_correction(
+        aia_data,
+        aia_header,
+        radius_factor=0.96
     )
 
     aia_data, aia_total_pixels = set_nan_to_non_sun(
@@ -159,7 +165,7 @@ def get_plage_active_network_intensity(
                 aia_file
             )
         )
-        return False, None, None, None, None, None
+        return False, None, None, None, None, None, None
 
     plage_mask = closing(plage_mask, square(3))
 
@@ -187,7 +193,7 @@ def get_plage_active_network_intensity(
                 aia_file
             )
         )
-        return False, None, None, None, None, None
+        return False, None, None, None, None, None, None
 
     active_network_mask[rr, cc] = 0
 
@@ -209,6 +215,13 @@ def get_plage_active_network_intensity(
         )
     )
 
+    sunspot_aia_intensity = np.nansum(
+        np.multiply(
+            sunspot_mask,
+            aia_data
+        )
+    )
+
     total_intensity_aia = np.nansum(
         aia_data
     )
@@ -219,7 +232,7 @@ def get_plage_active_network_intensity(
 
     return True, no_of_pixel_plage_en, no_of_pixels_active_networks, \
         plage_intensity, active_network_intensity, \
-        total_intensity_aia
+        total_intensity_aia, sunspot_aia_intensity
 
 
 def get_sunspot_intensity_and_total_pixels(
@@ -233,7 +246,7 @@ def get_sunspot_intensity_and_total_pixels(
         )
     )
 
-    fill_nans = False
+    fill_nans = True
 
     vis_data, vis_header = sunpy.io.fits.read(
         vis_file
@@ -308,7 +321,7 @@ def do_work(work_object):
 
     sunspot_mask = f
 
-    s2, a, b, c, d, e = get_plage_active_network_intensity(
+    s2, a, b, c, d, e, f = get_plage_active_network_intensity(
         work_object,
         vis_data,
         vis_header,
@@ -325,6 +338,8 @@ def do_work(work_object):
 
     total_intensity_aia = e
 
+    sunspot_aia_intensity = f
+
     data = {
         'date': [get_date(work_object.vis_file).strftime('%Y-%m-%d')],
         'julian_day': [work_object.julian_day],
@@ -333,6 +348,7 @@ def do_work(work_object):
         'aia_filename': [work_object.aia_file.name],
         'no_of_pixel_sunspot': [no_pixel_sunspot],
         'sunspot_intensity': [sunspot_intensity],
+        'sunspot_aia_intensity': [sunspot_aia_intensity],
         'no_of_pixel_plage_en': [no_of_pixel_plage_en],
         'plage_en_intensity': [plage_intensity],
         'no_of_pixels_active_networks': [no_of_pixels_active_networks],
@@ -477,6 +493,7 @@ if __name__ == '__main__':
             'aia_filename',
             'no_of_pixel_sunspot',
             'sunspot_intensity',
+            'sunspot_aia_intensity',
             'no_of_pixel_plage_en',
             'plage_en_intensity',
             'no_of_pixels_active_networks',
