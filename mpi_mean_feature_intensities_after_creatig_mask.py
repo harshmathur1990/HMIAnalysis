@@ -74,10 +74,11 @@ def populate_files(list_of_directories):
 
 
 class WorkObject(object):
-    def __init__(self, aia_file, vis_file, julian_day):
+    def __init__(self, aia_file, vis_file, julian_day, julian_day_diff):
         self._aia_file = aia_file
         self._vis_file = vis_file
         self._julian_day = julian_day
+        self._julian_day_diff = julian_day_diff
 
     @property
     def aia_file(self):
@@ -90,6 +91,11 @@ class WorkObject(object):
     @property
     def julian_day(self):
         return self._julian_day
+
+    @property
+    def julian_day_diff(self):
+        return self._julian_day_diff
+    
 
     def __eq__(self, other):
         return self.julian_day == other.julian_day
@@ -322,6 +328,7 @@ def do_work(work_object):
     data = {
         'date': [get_date(work_object.vis_file).strftime('%Y-%m-%d')],
         'julian_day': [work_object.julian_day],
+        'julian_day_diff': [work_object.julian_day_diff],
         'hmi_ic_filename': [work_object.vis_file.name],
         'aia_filename': [work_object.aia_file.name],
         'no_of_pixel_sunspot': [no_pixel_sunspot],
@@ -366,12 +373,15 @@ if __name__ == '__main__':
 
         for vis_file in vis_files:
 
-            a, b, c = get_corresponding_images(
+            a, b, c, d = get_corresponding_images(
                 vis_file
             )
-            aia_file, julian_day, status_ci = a, b, c
+            aia_file, juldiff, julian_day, status_ci = a, b, c, d
 
-            work_object = WorkObject(aia_file, vis_file, julian_day)
+            if not status_ci:
+                continue
+
+            work_object = WorkObject(aia_file, vis_file, julian_day, juldiff)
             waiting_queue.add(work_object)
 
         if list(hdf5_store.keys()):
@@ -379,7 +389,8 @@ if __name__ == '__main__':
                 work_object = WorkObject(
                     row['aia_filename'],
                     row['hmi_ic_filename'],
-                    row['julian_day']
+                    row['julian_day'],
+                    row['julian_day_diff']
                 )
 
                 waiting_queue.discard(work_object)
@@ -461,6 +472,7 @@ if __name__ == '__main__':
         columns = [
             'date',
             'julian_day',
+            'julian_day_diff',
             'hmi_ic_filename',
             'aia_filename',
             'no_of_pixel_sunspot',

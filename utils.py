@@ -492,17 +492,19 @@ def prepare_get_corresponding_aia_images(
 
         aia_argmin = np.argmin(aia_subtract_array)
 
-        if aia_subtract_array[aia_argmin] < 0.5:
+        if aia_subtract_array[aia_argmin] < 0.01041666666:
 
             if return_julian_day:
-                return aia_images[aia_argmin], julian_day_hmi, True
+                return aia_images[aia_argmin], \
+                    aia_subtract_array[aia_argmin], julian_day_hmi, True
             else:
-                return aia_images[aia_argmin], True
+                return aia_images[aia_argmin], \
+                    aia_subtract_array[aia_argmin], True
 
         if return_julian_day:
-            return None, None, False
+            return None, None, None, False
         else:
-            return None, False
+            return None, None, False
 
     return get_corresponding_images
 
