@@ -270,6 +270,7 @@ def do_thresholding(
     invalid_result = False
     if np.isnan(mean) or np.isinf(mean) or np.isnan(std) or np.isinf(std):
         invalid_result = True
+        return None, invalid_result
 
     threshold = mean + (k * std)
 
@@ -318,15 +319,21 @@ def do_limb_darkening_correction(
         factor=radius_factor
     )
 
+    large_median /= np.nanmax(large_median)
+
     result = np.divide(image, large_median)
 
     result[np.isinf(result)] = 0.0
 
     result[np.isnan(result)] = 0.0
 
-    result = result / np.max(result)
+    max_value = np.nanmax(result)
+
+    result = result / max_value
 
     result = skimage.exposure.equalize_adapthist(result, clip_limit=clip_limit)
+
+    result *= max_value
 
     return set_nan_to_non_sun(
         result,
