@@ -501,8 +501,8 @@ if __name__ == '__main__':
                         format='t',
                         data_columns=True
                     )
-                np.savetxt(sys.stdout.buffer, np.array(status_dict['data_frame']))
-                sys.stdout.write('\n')
+                # np.savetxt(sys.stdout.buffer, np.array(status_dict['data_frame']))
+                # sys.stdout.write('\n')
             else:
                 sys.stdout.write('Failure: {}\n'.format(item.julian_day))
                 failure_queue.add(item)
