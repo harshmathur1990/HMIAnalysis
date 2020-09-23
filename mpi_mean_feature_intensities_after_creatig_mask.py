@@ -222,6 +222,33 @@ def get_plage_active_network_intensity(
         )
     )
 
+    sunspot_mask[np.where(np.isnan(sunspot_mask))] = 0.0
+
+    plage_mask[np.where(np.isnan(plage_mask))] = 0.0
+
+    magnetic_mask = np.add(
+        sunspot_mask,
+        plage_mask
+    )
+
+    magnetic_squarred_intensity = np.nansum(
+        np.square(
+            np.multiply(
+                magnetic_mask,
+                aia_data
+            )
+        )
+    )
+
+    active_network_squarred_intensity = np.nansum(
+        np.square(
+            np.multiply(
+                active_network_mask,
+                aia_data
+            )
+        )
+    )
+
     total_intensity_aia = np.nansum(
         aia_data
     )
@@ -232,7 +259,8 @@ def get_plage_active_network_intensity(
 
     return True, no_of_pixel_plage_en, no_of_pixels_active_networks, \
         plage_intensity, active_network_intensity, \
-        total_intensity_aia, sunspot_aia_intensity
+        total_intensity_aia, sunspot_aia_intensity, \
+        magnetic_squarred_intensity, active_network_squarred_intensity
 
 
 def get_sunspot_intensity_and_total_pixels(
@@ -321,7 +349,7 @@ def do_work(work_object):
 
     sunspot_mask = f
 
-    s2, a, b, c, d, e, f = get_plage_active_network_intensity(
+    s2, a, b, c, d, e, f, g, h = get_plage_active_network_intensity(
         work_object,
         vis_data,
         vis_header,
@@ -340,6 +368,10 @@ def do_work(work_object):
 
     sunspot_aia_intensity = f
 
+    magnetic_squarred_intensity = g
+
+    active_network_squarred_intensity = h
+
     data = {
         'date': [get_date(work_object.vis_file).strftime('%Y-%m-%d')],
         'julian_day': [work_object.julian_day],
@@ -353,6 +385,8 @@ def do_work(work_object):
         'plage_en_intensity': [plage_intensity],
         'no_of_pixels_active_networks': [no_of_pixels_active_networks],
         'active_networks_intensity': [active_network_intensity],
+        'magnetic_squarred_intensity': [magnetic_squarred_intensity],
+        'active_network_squarred_intensity': [active_network_squarred_intensity],
         'no_of_pixels_background': [0],
         'background_intensity': [0],
         'total_intensity_aia': total_intensity_aia,
@@ -400,6 +434,8 @@ if __name__ == '__main__':
             work_object = WorkObject(aia_file, vis_file, julian_day, juldiff)
             waiting_queue.add(work_object)
 
+        count = 0
+
         if list(hdf5_store.keys()):
             for index, row in hdf5_store['data'].iterrows():
                 work_object = WorkObject(
@@ -410,6 +446,8 @@ if __name__ == '__main__':
                 )
 
                 waiting_queue.discard(work_object)
+
+                count = 1
 
         for worker in range(1, size):
             if len(waiting_queue) == 0:
@@ -424,8 +462,6 @@ if __name__ == '__main__':
             running_queue.add(item)
 
         sys.stdout.write('Finished First Phase\n')
-
-        count = 0
 
         while len(running_queue) != 0 or len(waiting_queue) != 0:
             try:
@@ -498,6 +534,8 @@ if __name__ == '__main__':
             'plage_en_intensity',
             'no_of_pixels_active_networks',
             'active_networks_intensity',
+            'magnetic_squarred_intensity',
+            'active_network_squarred_intensity',
             'no_of_pixels_background',
             'background_intensity',
             'total_intensity_aia',
