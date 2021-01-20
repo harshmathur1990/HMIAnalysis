@@ -1,4 +1,5 @@
 import datetime
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import timedelta
@@ -97,8 +98,15 @@ def plot_intensity(
     mean_intensity_aia_list,
     mean_intensity_active_networks,
     mean_intensity_plage_en,
-    mean_intensity_sunspots
+    mean_intensity_sunspots,
+    mean_intensity_background
 ):
+
+    plt.close('all')
+
+    plt.clf()
+
+    plt.cla()
 
     date_list = list(date_list)
 
@@ -110,7 +118,7 @@ def plot_intensity(
 
     mean_intensity_sunspots = list(mean_intensity_sunspots)
 
-    fig, axs = plt.subplots(4)
+    fig, axs = plt.subplots(5)
 
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
@@ -120,7 +128,7 @@ def plot_intensity(
 
     _start_date = datetime.date(2013, 12, 31)
 
-    for i in range(0, 15):
+    for i in range(0, 16):
         x_ticks.append(
             _start_date + timedelta(days=i)
         )
@@ -129,29 +137,35 @@ def plot_intensity(
 
     plt.gcf().autofmt_xdate()
 
-    l1, = axs[0].plot(date_list, mean_intensity_aia_list)
+    l1, = axs[0].plot(date_list, mean_intensity_aia_list, linewidth=0.5)
 
-    l2, = axs[1].plot(date_list, mean_intensity_active_networks)
+    l2, = axs[1].plot(date_list, mean_intensity_active_networks, linewidth=0.5)
 
-    l3, = axs[2].plot(date_list, mean_intensity_plage_en)
+    l3, = axs[2].plot(date_list, mean_intensity_plage_en, linewidth=0.5)
 
-    l4, = axs[3].plot(date_list, mean_intensity_sunspots)
+    l4, = axs[3].plot(date_list, mean_intensity_sunspots, linewidth=0.5)
 
-    l1.set_label('Intensity AIA by total pixels')
+    l5, = axs[4].plot(date_list, mean_intensity_background, linewidth=0.5)
+
+    l1.set_label('Intensity AIA divided by total pixels')
 
     axs[0].legend()
 
-    l2.set_label('Intensity Active Networks by total pixels')
+    l2.set_label('Intensity Active Networks divided by total pixels')
 
     axs[1].legend()
 
-    l3.set_label('Intensity Plage and Enhanced Networks by total pixels')
+    l3.set_label('Intensity Plage and Enhanced Networks divided by total pixels')
 
     axs[2].legend()
 
-    l4.set_label('Visible Intensity Sunspots by total pixels')
+    l4.set_label('Intensity Sunspots divided by total pixels')
 
     axs[3].legend()
+
+    l5.set_label('Intensity Background divided by total pixels')
+
+    axs[4].legend()
 
     # fig.legend((l1,), ('Background'))
 
@@ -169,7 +183,189 @@ def plot_intensity(
 
     # plt.tight_layout()
 
-    plt.show()
+    # plt.show()
+    plt.savefig(
+        'fifteen_days_fifteen_minute_cadence_separate_features.png',
+        format='png',
+        dpi=1200
+    )
+
+
+def plot_intensity_add_sunspot_with_plages(
+    title,
+    date_list,
+    mean_intensity_aia_list,
+    mean_intensity_active_networks,
+    mean_intensity_plage_en,
+    mean_intensity_sunspots,
+    mean_intensity_background
+):
+
+    plt.close('all')
+
+    plt.clf()
+
+    plt.cla()
+
+    date_list = list(date_list)
+
+    mean_intensity_aia_list = list(mean_intensity_aia_list)
+
+    mean_intensity_active_networks = list(mean_intensity_active_networks)
+
+    mean_intensity_plage_en = np.array(
+        list(mean_intensity_plage_en)
+    )
+
+    mean_intensity_sunspots = np.array(
+        list(mean_intensity_sunspots)
+    )
+
+    mean_intensity_sunspots_plage_en = np.add(
+        mean_intensity_plage_en,
+        mean_intensity_sunspots
+    )
+
+    fig, axs = plt.subplots(4)
+
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+
+    plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+
+    x_ticks = list()
+
+    _start_date = datetime.date(2013, 12, 31)
+
+    for i in range(0, 16):
+        x_ticks.append(
+            _start_date + timedelta(days=i)
+        )
+
+    plt.xticks(x_ticks)
+
+    plt.gcf().autofmt_xdate()
+
+    l1, = axs[0].plot(date_list, mean_intensity_aia_list, linewidth=0.5)
+
+    l2, = axs[1].plot(date_list, mean_intensity_active_networks, linewidth=0.5)
+
+    l3, = axs[2].plot(
+        date_list, mean_intensity_sunspots_plage_en, linewidth=0.5
+    )
+
+    l4, = axs[3].plot(date_list, mean_intensity_background, linewidth=0.5)
+
+    l1.set_label('Intensity AIA divided by total pixels')
+
+    axs[0].legend()
+
+    l2.set_label('Intensity Active Networks divided by total pixels')
+
+    axs[1].legend()
+
+    l3.set_label(
+        'Intensity Sunspots and Plage and Enhanced Networks divided by total pixels'
+    )
+
+    axs[2].legend()
+
+    l4.set_label('Intensity background divided by total pixels')
+
+    axs[3].legend()
+
+    fig.suptitle('{}'.format(title))
+
+    fig.tight_layout()
+
+    # plt.legend()
+
+    # plt.tight_layout()
+
+    # plt.show()
+
+    plt.savefig(
+        'fifteen_days_fifteen_minute_cadence_sunspot_plage_en_merge.png',
+        format='png',
+        dpi=1200
+    )
+
+
+
+def plot_intensity_add_sunspot_with_plages(
+    title,
+    date_list,
+    rms_magnetic,
+    rms_quiet_networks,
+):
+
+    plt.close('all')
+
+    plt.clf()
+
+    plt.cla()
+
+    date_list = list(date_list)
+
+    rms_add_quiet_magnetic = np.add(rms_magnetic, rms_quiet_networks)
+
+    rms_quiet_contribution = np.divide(rms_quiet_networks, rms_add_quiet_magnetic)
+
+    fig, axs = plt.subplots(3)
+
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+
+    plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+
+    x_ticks = list()
+
+    _start_date = datetime.date(2013, 12, 31)
+
+    for i in range(0, 31, 2):
+        x_ticks.append(
+            _start_date + timedelta(days=i)
+        )
+
+    plt.xticks(x_ticks)
+
+    plt.gcf().autofmt_xdate()
+
+    l1, = axs[0].plot(date_list, rms_magnetic, linewidth=0.5)
+
+    l2, = axs[1].plot(date_list, rms_quiet_networks, linewidth=0.5)
+
+    l3, = axs[2].plot(
+        date_list, rms_quiet_contribution, linewidth=0.5
+    )
+
+    l1.set_label('RMS Magnetic Intensity (Im)')
+
+    axs[0].legend()
+
+    l2.set_label('RMS Quiet Network Intensity (Iq)')
+
+    axs[1].legend()
+
+    l3.set_label(
+        'Iq / (Iq + Im)'
+    )
+
+    axs[2].legend()
+
+    fig.suptitle('{}'.format(title))
+
+    fig.tight_layout()
+
+    # plt.legend()
+
+    # plt.tight_layout()
+
+    # plt.show()
+
+    plt.savefig(
+        'thirty_days_fifteen_minute_cadence_sunspot_plage_en_merge.png',
+        format='png',
+        dpi=1200
+    )
 
 
 def plot_PCA(

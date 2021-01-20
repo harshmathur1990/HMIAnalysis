@@ -18,7 +18,7 @@ from mpi4py import MPI
 from skimage.morphology import closing, square
 from utils import prepare_get_corresponding_aia_images, \
     do_aiaprep, do_align, set_nan_to_non_sun, \
-    get_date, do_thresholding, do_area_filtering, \
+    get_dateime, do_thresholding, do_area_filtering, \
     do_limb_darkening_correction
 
 
@@ -133,12 +133,6 @@ def get_plage_active_network_intensity(
         fill_nans=fill_nans
     )
 
-    aia_data = do_limb_darkening_correction(
-        aia_data,
-        aia_header,
-        radius_factor=0.96
-    )
-
     aia_data, aia_total_pixels = set_nan_to_non_sun(
         aia_data,
         aia_header,
@@ -147,8 +141,22 @@ def get_plage_active_network_intensity(
         return_total_pixels=True
     )
 
-    plage_mask, invalid_result = do_thresholding(
+    limb_corrected_aia_data = do_limb_darkening_correction(
         aia_data,
+        aia_header,
+        radius_factor=0.96
+    )
+
+    limb_corrected_aia_data, aia_total_pixels = set_nan_to_non_sun(
+        limb_corrected_aia_data,
+        aia_header,
+        factor=0.96,
+        fill_nans=fill_nans,
+        return_total_pixels=True
+    )
+
+    plage_mask, invalid_result = do_thresholding(
+        limb_corrected_aia_data,
         aia_header,
         k=1.71,
         op=operator.ge,
@@ -176,11 +184,11 @@ def get_plage_active_network_intensity(
     plage_mask[rr, cc] = 0.0
 
     active_network_mask, invalid_result = do_thresholding(
-        aia_data,
+        limb_corrected_aia_data,
         aia_header,
-        k=2,
+        k=1.65,
         op=operator.ge,
-        k2=6,
+        k2=1.71,
         op2=operator.ge,
         radius_factor=0.96,
         value_1=1.0,
@@ -373,7 +381,7 @@ def do_work(work_object):
     active_network_squarred_intensity = h
 
     data = {
-        'date': [get_date(work_object.vis_file).strftime('%Y-%m-%d')],
+        'date': [get_dateime(work_object.vis_file).strftime('%Y-%m-%dT%H:%M:%S')],
         'julian_day': [work_object.julian_day],
         'julian_day_diff': [work_object.julian_day_diff],
         'hmi_ic_filename': [work_object.vis_file.name],

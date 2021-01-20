@@ -327,13 +327,13 @@ def do_limb_darkening_correction(
 
     result[np.isnan(result)] = 0.0
 
-    max_value = np.nanmax(result)
+    # max_value = np.nanmax(result)
 
-    result = result / max_value
+    # result = result / max_value
 
-    result = skimage.exposure.equalize_adapthist(result, clip_limit=clip_limit)
+    # result = skimage.exposure.equalize_adapthist(result, clip_limit=clip_limit)
 
-    result *= max_value
+    # result *= max_value
 
     return set_nan_to_non_sun(
         result,
@@ -421,7 +421,7 @@ def get_julian_day(file_dto):
 
 # @timeit
 def get_date(file_dto):
-    if isinstance(file_dto, Path):
+    if isinstance(file_dto, path):
         header = sunpy.io.read_file_header(file_dto, filetype='fits')[1]
     else:
         header = file_dto.read_headers('data')
@@ -431,6 +431,19 @@ def get_date(file_dto):
     time = sunpy.time.parse_time(header['T_OBS'])
 
     return time.datetime.date()
+
+
+def get_dateime(file_dto):
+    if isinstance(file_dto, Path):
+        header = sunpy.io.read_file_header(file_dto, filetype='fits')[1]
+    else:
+        header = file_dto.read_headers('data')
+
+    # header = file_hdu.header
+
+    time = sunpy.time.parse_time(header['T_OBS'])
+
+    return time.datetime
 
 
 def prepare_get_corresponding_images(
